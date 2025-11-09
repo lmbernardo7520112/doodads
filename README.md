@@ -15,7 +15,7 @@
 
 O Doodads é uma plataforma de agendamento inteligente projetada para **otimizar o fluxo de trabalho em barbearias**, integrando **clientes, barbeiros e administradores** em um sistema unificado, moderno e escalável.
 
-O foco inicial (Prompt 1) é na **configuração do banco de dados centralizado com MongoDB**, incluindo a conexão a uma instância existente, geração de schemas Mongoose e estrutura básica de pastas.
+O foco inicial é na **configuração do banco de dados centralizado com MongoDB**, incluindo a conexão a uma instância existente, geração de schemas Mongoose e estrutura básica de pastas.
 
 O projeto foi desenvolvido de forma incremental, priorizando **segurança de dados**, **consistência NoSQL** e **preparação para integrações futuras** como Stripe, OpenAI e UI responsiva.
 
