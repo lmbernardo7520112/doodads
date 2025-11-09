@@ -1,4 +1,3 @@
-```markdown
 # 🧠 Aparatu — Plataforma de Agendamento Inteligente para Barbearias
 
 ![React](https://img.shields.io/badge/React-18-blue?style=for-the-badge&logo=react)
