@@ -128,7 +128,7 @@ Os schemas suportam:
 ---
 
 ## 🧩 Estrutura de Pastas (Inicial)
-
+``
 aparatu/
 ├── client/  # Frontend React + Vite + Shadcn
 │   ├── src/
@@ -148,7 +148,7 @@ aparatu/
 │   │   └── VoiceLog.ts
 │   ├── utils/
 │   └── .env
-
+``
 ---
 
 ## 🧠 Conclusão
