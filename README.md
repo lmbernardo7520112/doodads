@@ -1,4 +1,4 @@
-# 🧠 Aparatu — Plataforma de Agendamento Inteligente para Barbearias
+# 🧠 Doodads — Plataforma de Agendamento Inteligente para Barbearias
 
 ![React](https://img.shields.io/badge/React-18-blue?style=for-the-badge&logo=react)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-lightblue?style=for-the-badge&logo=typescript)
@@ -13,7 +13,7 @@
 
 ## 📘 Descrição Geral
 
-O Aparatu é uma plataforma de agendamento inteligente projetada para **otimizar o fluxo de trabalho em barbearias**, integrando **clientes, barbeiros e administradores** em um sistema unificado, moderno e escalável.
+O Doodads é uma plataforma de agendamento inteligente projetada para **otimizar o fluxo de trabalho em barbearias**, integrando **clientes, barbeiros e administradores** em um sistema unificado, moderno e escalável.
 
 O foco inicial (Prompt 1) é na **configuração do banco de dados centralizado com MongoDB**, incluindo a conexão a uma instância existente, geração de schemas Mongoose e estrutura básica de pastas.
 
