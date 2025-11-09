@@ -131,23 +131,23 @@ Os schemas suportam:
 
 aparatu/
 ├── client/  # Frontend React + Vite + Shadcn
-│ ├── src/
-│ │ ├── components/
-│ │ │ └── ui/  # Shadcn components
-│ └── vite.config.ts
+│   ├── src/
+│   │   ├── components/
+│   │   │   └── ui/  # Shadcn components
+│   └── vite.config.ts
 ├── server/
-│ ├── config/
-│ │ └── db.ts  # Conexão MongoDB
-│ ├── models/
-│ │ ├── User.ts
-│ │ ├── Barbearia.ts
-│ │ ├── Servico.ts
-│ │ ├── Reserva.ts
-│ │ ├── Pagamento.ts
-│ │ ├── Mensagem.ts
-│ │ └── VoiceLog.ts
-│ ├── utils/
-│ └── .env
+│   ├── config/
+│   │   └── db.ts  # Conexão MongoDB
+│   ├── models/
+│   │   ├── User.ts
+│   │   ├── Barbearia.ts
+│   │   ├── Servico.ts
+│   │   ├── Reserva.ts
+│   │   ├── Pagamento.ts
+│   │   ├── Mensagem.ts
+│   │   └── VoiceLog.ts
+│   ├── utils/
+│   └── .env
 
 ---
 
