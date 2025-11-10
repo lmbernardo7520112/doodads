@@ -1,13 +1,22 @@
-# 🧠 Doodads — Plataforma de Agendamento Inteligente para Barbearias
-
+![Next.js](https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=nextdotjs)
 ![React](https://img.shields.io/badge/React-18-blue?style=for-the-badge&logo=react)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-lightblue?style=for-the-badge&logo=typescript)
 ![Node.js](https://img.shields.io/badge/Node.js-20.x-green?style=for-the-badge&logo=node.js)
 ![Express](https://img.shields.io/badge/Express-API-grey?style=for-the-badge&logo=express)
 ![MongoDB](https://img.shields.io/badge/MongoDB-Mongoose-darkgreen?style=for-the-badge&logo=mongodb)
-![Vite](https://img.shields.io/badge/Vite-React_App-purple?style=for-the-badge&logo=vite)
-![Axios](https://img.shields.io/badge/Axios-Interceptor-yellow?style=for-the-badge&logo=axios)
+![Tailwind](https://img.shields.io/badge/Tailwind-CSS-blue?style=for-the-badge&logo=tailwindcss)
 ![Shadcn](https://img.shields.io/badge/Shadcn-UI_Components-orange?style=for-the-badge&logo=shadcn)
+
+---
+
+## 📘 Descrição Geral
+
+O **Doodads** evolui para um ecossistema **fullstack moderno**, combinando:
+
+- **Backend**: Node.js + Express + MongoDB (API REST)
+- **Frontend**: Next.js 15 + Tailwind + Shadcn (UI reativa)
+- **Autenticação**: JWT + localStorage + middleware de roles
+- **Escalabilidade**: arquitetura modular e SSR-ready
 
 ---
 
@@ -25,7 +34,7 @@ O projeto foi desenvolvido de forma incremental, priorizando **segurança de dad
 
 ```text
 ┌───────────────────────┐
-│ Frontend │ → React + TypeScript + Vite + Shadcn + Axios
+│ Frontend │ → React + TypeScript + Next.js + Shadcn + Axios
 │ (UI Dinâmica)         │
 └──────────┬────────────┘
            │
@@ -129,12 +138,20 @@ Os schemas suportam:
 
 ## 🧩 Estrutura de Pastas (Inicial)
 ``
-aparatu/
-├── client/  # Frontend React + Vite + Shadcn
-│   ├── src/
-│   │   ├── components/
-│   │   │   └── ui/  # Shadcn components
-│   └── vite.config.ts
+client/
+└── app/
+    ├── login/
+    │   └── page.tsx
+    ├── register/
+    │   └── page.tsx
+    ├── dashboard/
+    │   ├── admin/
+    │   ├── barbeiro/
+    │   └── cliente/
+    ├── layout.tsx
+    ├── globals.css
+    └── middleware.ts
+
 ├── server/
 │   ├── config/
 │   │   └── db.ts  # Conexão MongoDB
