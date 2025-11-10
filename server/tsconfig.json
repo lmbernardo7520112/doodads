@@ -1,0 +1,39 @@
+{
+  "compilerOptions": {
+    /* Diretórios */
+    "rootDir": "./",
+    "outDir": "./dist",
+
+    /* Módulo e target */
+    "module": "commonjs",
+    "target": "ES2020",
+
+    /* Resolução e compatibilidade */
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+
+    /* Tipagem e checagem */
+    "strict": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "types": ["node"],              // 👈 essencial para corrigir o erro do 'process'
+
+    /* Suporte a paths (opcional) */
+    "baseUrl": ".",
+    "paths": {
+      "@models/*": ["models/*"],
+      "@config/*": ["config/*"],
+      "@utils/*": ["utils/*"]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "seed/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}
