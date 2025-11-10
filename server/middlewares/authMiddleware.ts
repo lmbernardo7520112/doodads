@@ -1,3 +1,9 @@
+// =============================================================
+// 🚀 index.ts
+// -------------------------------------------------------------
+// Configuração principal do servidor Express + Mongo + Auth.
+// =============================================================
+
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
@@ -6,9 +12,6 @@ dotenv.config();
 
 const JWT_SECRET = process.env.JWT_SECRET || "defaultsecret";
 
-/**
- * Verifica se o token JWT é válido
- */
 export const verifyToken = (req: Request, res: Response, next: NextFunction) => {
   const token = req.headers.authorization?.split(" ")[1];
 
@@ -25,9 +28,6 @@ export const verifyToken = (req: Request, res: Response, next: NextFunction) => 
   }
 };
 
-/**
- * Middleware para controle de acesso por role
- */
 export const requireRole = (role: "admin" | "barbeiro" | "cliente") => {
   return (req: Request, res: Response, next: NextFunction) => {
     const user = (req as any).user;
