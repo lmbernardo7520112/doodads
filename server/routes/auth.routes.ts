@@ -1,3 +1,9 @@
+// =============================================================
+// 🔐 auth.routes.ts
+// -------------------------------------------------------------
+// Define endpoints de autenticação: registro, login e perfil.
+// =============================================================
+
 import express from "express";
 import { register, login, getProfile } from "../controllers/auth.controller";
 import { verifyToken } from "../middlewares/authMiddleware";
@@ -9,3 +15,4 @@ router.post("/login", login);
 router.get("/profile", verifyToken, getProfile);
 
 export default router;
+

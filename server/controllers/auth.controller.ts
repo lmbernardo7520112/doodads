@@ -1,3 +1,5 @@
+//server/controllers/auth.controller.ts
+
 import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
@@ -82,3 +84,29 @@ export const login = async (req: Request, res: Response) => {
     return res.status(500).json({ message: "Erro interno no servidor." });
   }
 };
+
+/**
+ * Perfil do usuário autenticado
+ */
+export const getProfile = async (req: Request, res: Response) => {
+  try {
+    // O usuário vem injetado pelo middleware verifyToken
+    const userId = (req as any).user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ message: "Token inválido ou usuário não autenticado." });
+    }
+
+    const usuario = await User.findById(userId).select("-senha");
+
+    if (!usuario) {
+      return res.status(404).json({ message: "Usuário não encontrado." });
+    }
+
+    return res.status(200).json(usuario);
+  } catch (error) {
+    console.error("Erro ao obter perfil:", error);
+    return res.status(500).json({ message: "Erro ao obter perfil do usuário." });
+  }
+};
+
