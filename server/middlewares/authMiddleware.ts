@@ -1,5 +1,11 @@
 //server/middlewares/authMiddleware.ts
 
+// =============================================================
+// 🚀 index.ts
+// -------------------------------------------------------------
+// Configuração principal do servidor Express + Mongo + Auth.
+// =============================================================
+
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
@@ -37,11 +43,10 @@ export const verifyToken = (
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as any;
-
-    // 🧩 Garante compatibilidade com payloads diferentes
     const userId = decoded.id || decoded._id || decoded.sub;
+
     if (!userId) {
-      console.error("❌ Token inválido — sem ID de usuário no payload:", decoded);
+      console.error("❌ Token inválido — sem ID de usuário:", decoded);
       return res.status(401).json({ error: "Token inválido." });
     }
 
@@ -52,16 +57,16 @@ export const verifyToken = (
       email: decoded.email,
     };
 
-    console.log("✅ Token verificado para usuário:", decoded.email || userId);
+    console.log("✅ Token verificado para:", decoded.email || userId);
     next();
-  } catch (err) {
-    console.error("❌ Erro ao verificar token:", err);
-    return res.status(401).json({ error: "Token inválido ou expirado." });
+  } catch (err: any) {
+    console.error("❌ Token expirado ou inválido:", err.message);
+    return res.status(401).json({ error: "Token expirado ou inválido." });
   }
 };
 
 // =============================================================
-// ✅ Middleware opcional: exige tipo de usuário específico
+// ✅ Middleware adicional: exige tipo de usuário específico
 // -------------------------------------------------------------
 export const requireRole = (role: "admin" | "barbeiro" | "cliente") => {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {

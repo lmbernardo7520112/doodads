@@ -1,133 +1,84 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import api from "@/lib/api"; // ✅ Import corrigido — export default
-
-// =============================================================
-// 🧠 Tipos e Interfaces
-// -------------------------------------------------------------
-export type Role = "admin" | "barbeiro" | "cliente";
-
-export interface User {
-  id: string;
-  nomeCompleto: string;
-  email: string;
-  tipo: Role;
-  telefone?: string;
-}
+import { createContext, useContext, useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import api from "@/lib/api";
+import toast from "react-hot-toast";
 
 interface AuthContextType {
-  user: User | null;
+  user: any | null;
   token: string | null;
   loading: boolean;
-  login: (email: string, senha: string) => Promise<void>;
-  register: (payload: {
-    nomeCompleto: string;
-    email: string;
-    senha: string;
-    tipo: Role;
-    telefone?: string;
-  }) => Promise<void>;
+  login: (data: any) => void;
   logout: () => void;
 }
 
-// =============================================================
-// ⚙️ Contexto de Autenticação
-// -------------------------------------------------------------
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  const [user, setUser] = useState<any | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
-  // ==========================================================
-  // 🧩 Hidratar sessão do localStorage ao carregar o app
-  // ==========================================================
   useEffect(() => {
-    const stored = localStorage.getItem("token");
-    if (!stored) {
-      setLoading(false);
-      return;
-    }
+    console.log("📦 Auth state ->", { user, token });
+  }, [user, token]);
 
-    (async () => {
-      try {
-        setToken(stored);
-        const { data } = await api.get("/auth/profile", {
-          headers: { Authorization: `Bearer ${stored}` },
-        });
-        setUser(data);
-      } catch (err) {
-        console.warn("Sessão expirada ou inválida. Limpando dados locais.");
-        localStorage.removeItem("token");
-        document.cookie = "token=; Max-Age=0; path=/";
-      } finally {
-        setLoading(false);
+  // 🔄 Recupera sessão persistida
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("auth");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.token) {
+          setUser(parsed.user);
+          setToken(parsed.token);
+        }
       }
-    })();
+    } catch (err) {
+      console.error("Erro ao recuperar sessão:", err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  // ==========================================================
-  // 🔐 Função de Login
-  // ==========================================================
-  const login = async (email: string, senha: string) => {
-    try {
-      const { data } = await api.post("/auth/login", { email, senha });
-      localStorage.setItem("token", data.token);
-      document.cookie = `token=${data.token}; path=/; SameSite=Lax`;
+  // ✅ Login: define sessão e redireciona para /home
+  const login = (data: any) => {
+  setUser(data.user);
+  setToken(data.token);
+  localStorage.setItem("auth", JSON.stringify(data));
 
-      setToken(data.token);
-      setUser(data.user);
-    } catch (err: any) {
-      console.error("Erro no login:", err?.response?.data || err);
-      throw err;
-    }
+  toast.success("Login realizado com sucesso!");
+
+  // ⏳ Aguarda atualização de estado antes de navegar
+  setTimeout(() => {
+    router.push("/home");
+    }, 200);
   };
 
-  // ==========================================================
-  // 🧾 Registro de Novo Usuário
-  // ==========================================================
-  const register = async (payload: {
-    nomeCompleto: string;
-    email: string;
-    senha: string;
-    tipo: Role;
-    telefone?: string;
-  }) => {
-    try {
-      await api.post("/auth/register", payload);
-    } catch (err: any) {
-      console.error("Erro no registro:", err?.response?.data || err);
-      throw err;
-    }
-  };
-
-  // ==========================================================
-  // 🚪 Logout
-  // ==========================================================
   const logout = () => {
     setUser(null);
     setToken(null);
-    localStorage.removeItem("token");
-    document.cookie = "token=; Max-Age=0; path=/";
+    localStorage.removeItem("auth");
+    router.push("/login");
   };
 
-  // ==========================================================
-  // 🧩 Retorno do Provider
-  // ==========================================================
+  // 🕒 Sessão expirada
+  useEffect(() => {
+    const handleExpired = () => {
+      toast.error("Sessão expirada. Faça login novamente.");
+      logout();
+    };
+    window.addEventListener("session-expired", handleExpired);
+    return () => window.removeEventListener("session-expired", handleExpired);
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-// =============================================================
-// 🧩 Hook de consumo (useAuth)
-// -------------------------------------------------------------
-export const useAuth = () => {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within an AuthProvider");
-  return ctx;
-};
+export const useAuth = () => useContext(AuthContext);

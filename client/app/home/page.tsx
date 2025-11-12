@@ -4,8 +4,6 @@
 // Página principal do cliente: banner + agendamentos + barbearias
 // =============================================================
 
-
-
 "use client";
 
 import { useState } from "react";
@@ -22,20 +20,42 @@ const TAGS = ["✂️ Cabelo", "💈 Barba", "✨ Combo"];
 
 export default function HomePage() {
   useRoleRedirect(); // exige login
+
   const [query, setQuery] = useState("");
+  const [selectedQuery, setSelectedQuery] = useState<string | null>(null);
   const [sel, setSel] = useState<number | null>(0);
-  const { data: barbearias = [], loading: loadingBarb } = useBarbearias(query);
+
+  const { data: barbearias = [], loading: loadingBarb } = useBarbearias(selectedQuery || query);
   const { data: reservas = [], loading: loadingRes } = useReservas();
 
   const loading = loadingBarb || loadingRes;
 
+  // 🔍 Extrair nomes para sugestões
+  const suggestions = barbearias.map((b) => b.nome);
+
+  const handleSelectSuggestion = (val: string) => {
+    setSelectedQuery(val);
+  };
+
+  const handleClearSearch = () => {
+    setQuery("");
+    setSelectedQuery(null);
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <p className="text-gray-500">Carregando dados...</p>
+        <p className="text-gray-500 dark:text-gray-300">Carregando dados...</p>
       </div>
     );
   }
+
+  // 🔹 Se há termo selecionado, filtra resultados exibidos
+  const filtered = selectedQuery
+    ? barbearias.filter((b) =>
+        b.nome.toLowerCase().includes(selectedQuery.toLowerCase())
+      )
+    : barbearias;
 
   return (
     <div className="space-y-6 pb-6">
@@ -65,7 +85,14 @@ export default function HomePage() {
       {/* ========================================================== */}
       {/* 🔍 Barra de pesquisa e tags */}
       {/* ========================================================== */}
-      <SearchBar value={query} onChange={setQuery} />
+      <SearchBar
+        value={query}
+        onChange={setQuery}
+        loading={loadingBarb}
+        suggestions={suggestions}
+        onSelectSuggestion={handleSelectSuggestion}
+        onClear={handleClearSearch}
+      />
 
       <div className="flex items-center gap-2 overflow-x-auto pb-1">
         {TAGS.map((t, i) => (
@@ -82,7 +109,9 @@ export default function HomePage() {
       {/* 📅 Agendamentos */}
       {/* ========================================================== */}
       <section className="space-y-2">
-        <h2 className="text-xs font-semibold text-gray-500">AGENDAMENTOS</h2>
+        <h2 className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+          AGENDAMENTOS
+        </h2>
         <div className="grid gap-3">
           {reservas.length === 0 ? (
             <p className="text-sm text-gray-400 italic">
@@ -102,12 +131,12 @@ export default function HomePage() {
       <section className="space-y-3">
         <h2 className="text-base font-semibold">Recomendados</h2>
         <div className="grid gap-4">
-          {barbearias.length === 0 ? (
+          {filtered.length === 0 ? (
             <p className="text-sm text-gray-400 italic">
               Nenhuma barbearia encontrada.
             </p>
           ) : (
-            barbearias.map((b: any) => (
+            filtered.map((b: any) => (
               <BarberCard key={b._id} barbearia={b} />
             ))
           )}
