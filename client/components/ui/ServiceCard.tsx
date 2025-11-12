@@ -1,27 +1,47 @@
-// Defina uma interface para as props
-interface ServiceCardProps {
-  servico: {
-    nome: string;
-    descricao: string;
-    preco: number;
-  };
-  onReservar: (servico: ServiceCardProps['servico']) => void;  // Função que recebe o servico
-}
+//client/components/ui/ServiceCard.tsx
+"use client";
 
-export default function ServiceCard({ servico, onReservar }: ServiceCardProps) {
+import { useState } from "react";
+import ReservaModal from "./ReservaModal";
+import { Servico } from "@/types/Servico"; // ✅ Importa tipagem global
+
+export default function ServiceCard({
+  servico,
+  barbeariaId,
+}: {
+  servico: Servico;
+  barbeariaId: string;
+}) {
+  const [open, setOpen] = useState(false);
+
   return (
-    <div className="flex justify-between items-center bg-gray-50 p-4 rounded-card mb-2">
-      <div>
-        <h4 className="font-semibold">{servico.nome}</h4>
-        <p className="text-sm text-gray-500">{servico.descricao}</p>
-        <p className="text-green-600 font-medium mt-1">R$ {servico.preco.toFixed(2)}</p>
+    <>
+      <div className="border rounded-xl p-4 shadow-sm bg-white hover:shadow-md transition">
+        <h3 className="font-semibold text-gray-900">{servico.nome}</h3>
+        <p className="text-sm text-gray-500 mb-2">
+          {servico.descricao ?? "Serviço profissional"}
+        </p>
+        <p className="text-sm text-gray-700">
+          ⏱️{" "}
+          {servico.duracaoMin
+            ? `${servico.duracaoMin} min`
+            : "Duração não informada"}{" "}
+          — 💰 R$ {servico.preco}
+        </p>
+        <button
+          onClick={() => setOpen(true)}
+          className="mt-3 w-full bg-black text-white rounded-lg py-2 text-sm hover:bg-gray-800"
+        >
+          Reservar
+        </button>
       </div>
-      <button
-        onClick={() => onReservar(servico)}
-        className="bg-green-500 text-white px-4 py-2 rounded-full hover:bg-green-600 transition"
-      >
-        Reservar
-      </button>
-    </div>
+
+      <ReservaModal
+        open={open}
+        onClose={() => setOpen(false)}
+        barbeariaId={barbeariaId}
+        servico={servico}
+      />
+    </>
   );
 }

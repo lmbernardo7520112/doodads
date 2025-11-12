@@ -2,21 +2,27 @@
   "name": "server",
   "version": "1.0.0",
   "type": "commonjs",
-  "description": "Servidor Aparatu / Doodads - MongoDB + Mongoose",
+  "description": "Servidor Doodads - MongoDB + Mongoose",
   "main": "index.ts",
   "scripts": {
     "dev": "ts-node -r dotenv/config index.ts",
-    "seed": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config ./seed/populateDataBaseSeed.ts"
+    "seed": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config ./seed/populateDataBaseSeed.ts",
+    "build": "next build",
+    "start": "next start"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
+    "cloudinary": "^2.8.0",
+    "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.19.3"
+    "mongoose": "^8.19.3",
+    "multer": "^2.0.2"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.5",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^24.10.0",
