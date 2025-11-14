@@ -1,1 +1,55 @@
-node_modules
+# Dependências Node.js
+node_modules/
+
+# Ferramentas e Relatórios
+..bfg-report/
+
+# Arquivos de build e produção
+/dist
+/build
+/.vite
+/out
+
+# Arquivos de ambiente e segredos
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs e temporários
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Arquivos do editor e IDE
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Arquivos de cache
+*.cache
+.eslintcache
+.stylelintcache
+
+# Arquivos de testes e coverage
+/coverage
+/tests/__snapshots__
+
+# Outros arquivos comuns a ignorar
+tmp/
+temp/
+
+# Para o frontend (Vite/React)
+client/node_modules/
+client/dist/
+
+# Para o backend (Express)
+server/node_modules/
+
+# Docker (se aplicável)
+.dockerignore
+docker-compose.yml  # Se contiver segredos; caso contrário, remova esta linha

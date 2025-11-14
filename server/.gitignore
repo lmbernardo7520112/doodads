@@ -1,6 +1,9 @@
 # Dependências Node.js
 node_modules/
 
+# Ferramentas e Relatórios
+..bfg-report/
+
 # Arquivos de build e produção
 /dist
 /build
