@@ -1,9 +1,14 @@
 //server/middlewares/authMiddleware.ts
 
+
 // =============================================================
-// 🚀 index.ts
+// 🔐 Auth middleware — compatível (named exports + default)
 // -------------------------------------------------------------
-// Configuração principal do servidor Express + Mongo + Auth.
+// Exports:
+//  - export interface AuthenticatedRequest
+//  - export const verifyToken
+//  - export const requireRole
+//  - export default verifyToken (compatibilidade)
 // =============================================================
 
 import { Request, Response, NextFunction } from "express";
@@ -13,73 +18,88 @@ import dotenv from "dotenv";
 dotenv.config();
 const JWT_SECRET = process.env.JWT_SECRET || "defaultsecret";
 
-// =============================================================
-// 🔐 Tipagem estendida da Request
-// -------------------------------------------------------------
+// Tipagem estendida para Request usada pelo resto do projeto
 export interface AuthenticatedRequest extends Request {
   userId?: string;
   user?: {
     id: string;
-    tipo: "admin" | "barbeiro" | "cliente";
-    email: string;
+    tipo?: "admin" | "barbeiro" | "cliente";
+    email?: string;
+    [key: string]: any;
   };
 }
 
-// =============================================================
-// ✅ Middleware principal: valida o token e injeta req.userId
-// -------------------------------------------------------------
+/**
+ * verifyToken — middleware principal (named export)
+ * - aceita cabeçalho "Authorization: Bearer <token>"
+ * - aceita também apenas o token (por segurança)
+ * - injeta req.userId e req.user (com dados do payload do token)
+ */
 export const verifyToken = (
   req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
 ) => {
-  const authHeader = req.headers.authorization;
-  const token = authHeader?.split(" ")[1];
-
-  if (!token) {
-    console.warn("⚠️ Token não fornecido.");
-    return res.status(401).json({ error: "Token não fornecido." });
-  }
-
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
-    const userId = decoded.id || decoded._id || decoded.sub;
+    const authHeader = req.headers.authorization ?? req.headers.Authorization;
+    const tokenRaw = typeof authHeader === "string" ? authHeader : undefined;
 
-    if (!userId) {
-      console.error("❌ Token inválido — sem ID de usuário:", decoded);
+    if (!tokenRaw) {
+      console.warn("⚠️ Token não fornecido.");
+      return res.status(401).json({ error: "Token não fornecido." });
+    }
+
+    // Suporta "Bearer <token>" e também apenas o token
+    const parts = tokenRaw.split(" ");
+    const token = parts.length === 2 ? parts[1] : parts[0];
+
+    if (!token) {
+      console.warn("⚠️ Token vazio no header Authorization.");
       return res.status(401).json({ error: "Token inválido." });
     }
 
-    req.userId = userId;
+    // Verifica token (lança se inválido/expirado)
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+
+    // Normaliza IDs do payload caso existam (id, _id, sub)
+    const userId = decoded.id || decoded._id || decoded.sub;
+    if (!userId) {
+      console.error("❌ Payload do token sem user id:", decoded);
+      return res.status(401).json({ error: "Token inválido." });
+    }
+
+    // Injeta no req para uso posterior
+    req.userId = String(userId);
     req.user = {
-      id: userId,
+      id: String(userId),
       tipo: decoded.tipo,
       email: decoded.email,
+      ...decoded,
     };
 
-    console.log("✅ Token verificado para:", decoded.email || userId);
+    // continue
     next();
   } catch (err: any) {
-    console.error("❌ Token expirado ou inválido:", err.message);
-    return res.status(401).json({ error: "Token expirado ou inválido." });
+    console.error("❌ Erro ao verificar token:", err && err.message ? err.message : err);
+    return res.status(401).json({ error: "Token inválido ou expirado." });
   }
 };
 
-// =============================================================
-// ✅ Middleware adicional: exige tipo de usuário específico
-// -------------------------------------------------------------
-export const requireRole = (role: "admin" | "barbeiro" | "cliente") => {
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+/**
+ * requireRole(role) — middleware que exige um tipo específico de usuário
+ * Ex: app.get('/admin', verifyToken, requireRole('admin'), handler)
+ */
+export const requireRole =
+  (role: "admin" | "barbeiro" | "cliente") =>
+  (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     if (!req.user) {
       return res.status(401).json({ error: "Usuário não autenticado." });
     }
-
     if (req.user.tipo !== role) {
-      return res
-        .status(403)
-        .json({ error: `Acesso negado: apenas ${role}s podem acessar.` });
+      return res.status(403).json({ error: `Acesso negado: apenas ${role}s.` });
     }
-
     next();
   };
-};
+
+// para compatibilidade com imports por default (import authMiddleware from "...";)
+export default verifyToken;

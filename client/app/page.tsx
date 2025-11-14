@@ -28,9 +28,13 @@ export default function HomePage() {
       <section className="space-y-2">
         <h2 className="text-xs font-semibold text-gray-500">AGENDAMENTOS</h2>
         <div className="grid gap-3">
-          {reservas.slice(0, 3).map((r: any) => (
-            <AppointmentCard key={r._id} reserva={r} />  // Alterado: reserva={r}
-          ))}
+          {Array.isArray(reservas) && reservas.length > 0 ? (
+            reservas.slice(0, 3).map((r: any) => (
+              <AppointmentCard key={r._id} reserva={r} />
+            ))
+          ) : (
+            <p className="text-gray-400 text-sm">Nenhum agendamento encontrado.</p>
+          )}
         </div>
       </section>
       <section className="space-y-3">

@@ -5,11 +5,14 @@ import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import toast from "react-hot-toast";
 
+export type Role = "admin" | "barbeiro" | "cliente";
+
 interface AuthContextType {
   user: any | null;
   token: string | null;
   loading: boolean;
   login: (data: any) => void;
+  register: (data: any) => Promise<void>;
   logout: () => void;
 }
 
@@ -21,42 +24,75 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
+  // 🔍 DEBUG AUTOMÁTICO
   useEffect(() => {
-    console.log("📦 Auth state ->", { user, token });
+    console.log("📦 Auth state atualizado ->", { user, token });
   }, [user, token]);
 
-  // 🔄 Recupera sessão persistida
+
+  // 🔄 Carrega sessão persistida (SEMPRE com token string)
   useEffect(() => {
     try {
       const stored = localStorage.getItem("auth");
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (parsed.token) {
-          setUser(parsed.user);
-          setToken(parsed.token);
-        }
+
+        // Corrige casos antigos onde salvava array!
+        const safeToken =
+          typeof parsed.token === "string"
+            ? parsed.token
+            : Array.isArray(parsed.token)
+            ? parsed.token[0] // pega somente o primeiro válido
+            : null;
+
+        setUser(parsed.user ?? null);
+        setToken(safeToken ?? null);
+
+        // 🔥 Regrava garantindo estrutura correta
+        localStorage.setItem(
+          "auth",
+          JSON.stringify({ user: parsed.user, token: safeToken })
+        );
       }
     } catch (err) {
-      console.error("Erro ao recuperar sessão:", err);
+      console.error("❌ Erro ao recuperar sessão:", err);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // ✅ Login: define sessão e redireciona para /home
+
+  // 🔐 LOGIN — garante persistência correta
   const login = (data: any) => {
-  setUser(data.user);
-  setToken(data.token);
-  localStorage.setItem("auth", JSON.stringify(data));
+    const clean = {
+      user: data.user,
+      token: data.token,
+    };
 
-  toast.success("Login realizado com sucesso!");
+    setUser(clean.user);
+    setToken(clean.token);
+    localStorage.setItem("auth", JSON.stringify(clean));
 
-  // ⏳ Aguarda atualização de estado antes de navegar
-  setTimeout(() => {
-    router.push("/home");
-    }, 200);
+    toast.success("Login realizado com sucesso!");
+
+    setTimeout(() => router.push("/home"), 200);
   };
 
+
+  // 🆕 REGISTER
+  const register = async (data: any) => {
+    try {
+      await api.post("/auth/register", data);
+      toast.success("Conta criada com sucesso!");
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Erro ao registrar.");
+      throw err;
+    }
+  };
+
+
+  // 🚪 LOGOUT SEGURO
   const logout = () => {
     setUser(null);
     setToken(null);
@@ -64,7 +100,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     router.push("/login");
   };
 
-  // 🕒 Sessão expirada
+
+  // Expiração automática de sessão
   useEffect(() => {
     const handleExpired = () => {
       toast.error("Sessão expirada. Faça login novamente.");
@@ -75,7 +112,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

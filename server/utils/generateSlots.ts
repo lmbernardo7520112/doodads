@@ -1,67 +1,68 @@
-// ===============================================================
-// 🕐 Geração de horários disponíveis para uma barbearia
-// ---------------------------------------------------------------
-// Lógica genérica: retorna intervalos de 30 min entre 09:00 e 17:00,
-// removendo os horários já reservados.
-// ===============================================================
-
 // =============================================================
-// 🕓 generateSlots.ts
+// 🕓 server/utils/generateSlots.ts
 // -------------------------------------------------------------
-// Gera uma lista de horários disponíveis para uma barbearia e data.
-// Usa grade 09:00–18:00 com passo de 30 min, pulando horários ocupados.
+// Gera horários disponíveis (09:00–18:00) pulando os ocupados
 // =============================================================
 
-import Reserva from "../models/Reserva"; // ✅ import default (não há named export)
+import Reserva from "../models/Reserva";
 import Servico from "../models/Servico";
 
+interface SlotParams {
+  barbeariaId: string;
+  servicoId: string;
+  date: string; // formato 'YYYY-MM-DD'
+}
+
 /**
- * Gera horários disponíveis para uma barbearia e data.
- * @param barbeariaId ID da barbearia (ObjectId)
- * @param servicoId ID do serviço
- * @param date Data no formato YYYY-MM-DD
- * @returns Lista de horários livres ["09:00", "09:30", ...]
+ * Gera uma lista de slots (strings "HH:MM") para o dia e serviço informado,
+ * removendo qualquer horário já reservado (status diferente de "cancelado").
+ *
+ * Observações importantes:
+ * - Bloqueamos reservas com qualquer status exceto "cancelado" (ou seja: "pendente" e "confirmado" bloqueiam).
+ * - O cálculo é feito considerando o duracaoMin do serviço.
  */
-export async function generateSlots(
-  barbeariaId: string,
-  servicoId: string,
-  date: string
-): Promise<string[]> {
-  // 1️⃣ Busca o serviço para saber duração
+export async function generateSlots({
+  barbeariaId,
+  servicoId,
+  date,
+}: SlotParams): Promise<{ slots: string[] }> {
   const servico = await Servico.findById(servicoId);
-  if (!servico) return [];
+  if (!servico) return { slots: [] };
 
-  const duracao = servico.duracaoMin || 30; // duração padrão 30 min
+  const duracao = Number(servico.duracaoMin) || 30;
 
-  // 2️⃣ Define grade base (09h até 18h)
-  const inicio = 9 * 60;
-  const fim = 18 * 60;
-  const step = 30; // passo base
+  const inicio = 9 * 60; // 09:00 em minutos
+  const fim = 18 * 60; // 18:00 em minutos
 
   const todos: string[] = [];
+
   for (let m = inicio; m + duracao <= fim; m += duracao) {
     const h = String(Math.floor(m / 60)).padStart(2, "0");
     const min = String(m % 60).padStart(2, "0");
     todos.push(`${h}:${min}`);
   }
 
-  // 3️⃣ Busca reservas existentes nesse dia
+  // limites do dia (usando UTC local naive; se sua aplicação exigir timezone explícito,
+  // adaptar aqui para considerar o timezone do estabelecimento)
+  const startDate = new Date(`${date}T00:00:00`);
+  const endDate = new Date(`${date}T23:59:59`);
+
   const reservas = await Reserva.find({
     barbearia: barbeariaId,
     servico: servicoId,
     dataHora: {
-      $gte: new Date(`${date}T00:00:00`),
-      $lt: new Date(`${date}T23:59:59`),
+      $gte: startDate,
+      $lt: endDate,
     },
+    // bloqueia qualquer reserva que não esteja cancelada
     status: { $ne: "cancelado" },
-  });
+  }).sort({ dataHora: 1 });
 
   const ocupados = reservas.map((r) =>
     new Date(r.dataHora).toTimeString().slice(0, 5)
   );
 
-  // 4️⃣ Remove horários conflitantes
-  const livres = todos.filter((h) => !ocupados.includes(h));
-
-  return livres;
+  return { slots: todos.filter((h) => !ocupados.includes(h)) };
 }
+
+export default generateSlots;

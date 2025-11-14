@@ -16,7 +16,9 @@ export function useReservas() {
     const res = await api.get(url, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    return res.data;
+
+    // 🔥 GARANTE QUE SEMPRE RETORNA ARRAY
+    return Array.isArray(res.data) ? res.data : [];
   };
 
   const { data, error, isLoading, mutate } = useSWR(

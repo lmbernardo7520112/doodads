@@ -1,18 +1,27 @@
-"use client";
+//client/components/ui/ReservaModal.tsx
 
+// =============================================================
+// client/components/ui/ReservaModal.tsx
+// -------------------------------------------------------------
+// Modal para criação de reserva — spinner no botão Confirmar
+// e uso de toast (react-hot-toast) em vez de alert()
+// =============================================================
+
+"use client";
 
 import { useState, useEffect } from "react";
 import { Dialog } from "@headlessui/react";
-import { CalendarIcon, Clock } from "lucide-react";
+import { CalendarIcon, Clock, Loader2 } from "lucide-react";
+import toast from "react-hot-toast";
 import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
-import { Servico } from "@/types/Servico"; // ✅ Importa o tipo global
+import { Servico } from "@/types/Servico";
 
 interface ReservaModalProps {
   open: boolean;
   onClose: () => void;
   barbeariaId: string;
-  servico: Servico; // ✅ agora alinhado
+  servico: Servico;
 }
 
 export default function ReservaModal({
@@ -28,50 +37,69 @@ export default function ReservaModal({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // mínimo: data de hoje (formato YYYY-MM-DD)
+  const minDate = new Date().toISOString().split("T")[0];
+
   useEffect(() => {
-    if (!date) return;
+    if (!date) {
+      setSlots([]);
+      return;
+    }
+
     setLoading(true);
     api
       .get(`/reservas/${barbeariaId}/slots`, {
         params: { date, servicoId: servico._id },
       })
-      .then((res) => setSlots(res.data.slots))
-      .catch((err) => console.error("Erro ao buscar slots:", err))
+      .then((res) => setSlots(Array.isArray(res.data.slots) ? res.data.slots : []))
+      .catch(() => toast.error("Erro ao carregar horários disponíveis."))
       .finally(() => setLoading(false));
-  }, [date]);
+  }, [date, barbeariaId, servico._id]);
 
   const handleConfirmar = async () => {
     if (!date || !selectedSlot) {
-      alert("Escolha uma data e um horário antes de confirmar!");
+      toast("Escolha uma data e um horário antes de confirmar.", { icon: "⚠️" });
+      return;
+    }
+
+    if (!token) {
+      toast.error("Você precisa estar autenticado para agendar.");
       return;
     }
 
     try {
       setSaving(true);
-      const dataHora = new Date(`${date}T${selectedSlot}:00`);
-      await api.post(
-        "/reservas",
-        {
-          barbearia: barbeariaId,
-          servico: servico._id,
-          dataHora,
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      alert("✅ Reserva confirmada com sucesso!");
+      // cria objeto Date com timezone local → enviamos ISO para o backend
+      const dateHora = new Date(`${date}T${selectedSlot}:00`);
+      const payload = {
+        barbearia: barbeariaId,
+        servico: servico._id,
+        dataHora: dateHora.toISOString(),
+      };
+
+      const res = await api.post("/reservas", payload, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      // Se backend retornar a reserva, podemos exibir detalhes adicionais
+      toast.success(res.data?.message || "Reserva criada com sucesso! 🎉");
+
+      // opcional: mutate SWR ou atualizar lista localmente
       onClose();
     } catch (err: any) {
       console.error("❌ Erro ao confirmar reserva:", err);
-      alert(err.response?.data?.error || "Erro ao confirmar reserva.");
+      const msg = err?.response?.data?.message || "Falha ao criar reserva.";
+      toast.error(msg);
     } finally {
       setSaving(false);
     }
   };
 
+  if (!open) return null;
+
   return (
     <Dialog open={open} onClose={onClose} className="relative z-50">
       <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" aria-hidden="true" />
-
       <div className="fixed inset-0 flex items-center justify-center p-4">
         <Dialog.Panel className="bg-white rounded-2xl p-6 w-full max-w-md shadow-lg space-y-5">
           <Dialog.Title className="text-xl font-semibold text-gray-800">
@@ -88,7 +116,7 @@ export default function ReservaModal({
               value={date}
               onChange={(e) => setDate(e.target.value)}
               className="w-full border rounded-lg px-3 py-2 mt-1"
-              min={new Date().toISOString().split("T")[0]}
+              min={minDate}
             />
           </div>
 
@@ -101,9 +129,7 @@ export default function ReservaModal({
               {loading ? (
                 <p className="text-gray-500 text-sm">Carregando horários...</p>
               ) : slots.length === 0 ? (
-                <p className="text-gray-400 italic text-sm">
-                  Nenhum horário disponível para esta data.
-                </p>
+                <p className="text-gray-400 italic text-sm">Nenhum horário disponível.</p>
               ) : (
                 <div className="grid grid-cols-3 gap-2">
                   {slots.map((slot) => (
@@ -128,9 +154,10 @@ export default function ReservaModal({
           <button
             onClick={handleConfirmar}
             disabled={saving}
-            className="w-full bg-black text-white rounded-lg py-2 mt-3 font-medium hover:bg-gray-800 disabled:opacity-60"
+            className="w-full bg-black text-white rounded-lg py-2 mt-3 font-medium hover:bg-gray-800 disabled:opacity-60 flex items-center justify-center gap-2"
           >
-            {saving ? "Salvando..." : "Confirmar Reserva"}
+            {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+            {saving ? "Confirmando..." : "Confirmar Reserva"}
           </button>
         </Dialog.Panel>
       </div>

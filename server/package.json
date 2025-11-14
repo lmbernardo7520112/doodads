@@ -8,6 +8,7 @@
     "dev": "ts-node -r dotenv/config index.ts",
     "seed": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config ./seed/populateDataBaseSeed.ts",
     "build": "next build",
+    "test": "jest --runInBand",
     "start": "next start"
   },
   "dependencies": {
@@ -21,11 +22,18 @@
     "multer": "^2.0.2"
   },
   "devDependencies": {
+    "@babel/preset-env": "^7.28.5",
+    "@babel/preset-typescript": "^7.28.5",
     "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.5",
+    "@types/jest": "^30.0.0",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^24.10.0",
+    "@types/supertest": "^6.0.3",
+    "babel-jest": "^30.2.0",
+    "jest": "^30.2.0",
+    "ts-jest": "^29.4.5",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
   }
