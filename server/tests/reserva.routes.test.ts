@@ -29,7 +29,7 @@ beforeAll(async () => {
   const user = await User.create({
     nomeCompleto: "Cliente Test",
     email: "cliente@t.com",
-    senha: "x",
+    senha: "123456",
     tipo: "cliente",
   } as any);
 
@@ -42,16 +42,18 @@ beforeAll(async () => {
   );
 
   const b = await Barbearia.create({
-    nome: "Barbearia Test",
-    imagem: "",
-    endereco: {
-      rua: "Rua A",
-      numero: "10",
-      bairro: "Centro",
-      cidade: "Cidade X",
-      cep: "00000-000",
-    },
-  } as any);
+  nome: "Barbearia Test",
+  imagem: "",
+  telefone1: "11999999999",
+  endereco: {
+    rua: "Rua A",
+    numero: "10",
+    bairro: "Centro",
+    cidade: "Cidade X",
+    cep: "00000-000",
+  },
+} as any);
+
 
   barbeariaId = b._id.toString();
 
@@ -66,7 +68,7 @@ beforeAll(async () => {
 });
 
 afterEach(async () => {
-  await clearDB();
+  await mongoose.connection.dropCollection("reservas");
 });
 
 afterAll(async () => {
