@@ -1,6 +1,5 @@
 // =============================================================
-// 🚀 index.ts
-// Servidor principal Express + Mongo + Auth + Pagamentos
+// 🚀 index.ts — versão final corrigida
 // =============================================================
 
 import express from "express";
@@ -33,25 +32,20 @@ app.use(
 );
 
 // =============================================================
-// ⭐ WEBHOOK STRIPE → precisa de RAW e deve ser registrado ANTES de express.json()
+// ⭐ WEBHOOK STRIPE — DEVE VIR ANTES DE express.json()
 // =============================================================
 app.post(
   "/api/pagamento/webhook",
-  bodyParser.raw({ type: "*/*" }), // aceita qualquer tipo enviado pelo Stripe
-  (req, res, next) => {
-    (req as any).rawBody = req.body; // salva para uso no controller
-    next();
-  }
+  bodyParser.raw({ type: "application/json" })
 );
 
 // =============================================================
-// Agora é seguro habilitar express.json()
-// (isso NÃO afeta o webhook porque ele já foi registrado antes)
+// Agora é seguro ativar express.json()
 // =============================================================
 app.use(express.json());
 
 // =============================================================
-// 🧠 Conexão com MongoDB
+// 🧠 MongoDB
 // =============================================================
 connectToMongo();
 
@@ -64,16 +58,16 @@ app.use("/api/barbearias", barbeariaRoutes);
 app.use("/api/reservas", reservaRoutes);
 app.use("/api/servicos", servicoRoutes);
 
-// ⭐ Checkout + Webhook + Pagamento
-// (O webhook já foi registrado acima manualmente)
-// evitar duplicação
+// =============================================================
+// 💳 Pagamentos (checkout)
+// =============================================================
 app.use("/api/pagamento", pagamentoRoutes);
 
 // =============================================================
-// 🩺 Health Check
+// 🩺 Health
 // =============================================================
 app.get("/api/health", (_req, res) => {
-  res.status(200).json({ status: "OK", message: "Servidor em execução ✅" });
+  res.status(200).json({ status: "OK" });
 });
 
 // =============================================================
@@ -81,7 +75,4 @@ app.get("/api/health", (_req, res) => {
 // =============================================================
 app.listen(PORT, () => {
   console.log(`\n🚀 Server running at http://localhost:${PORT}`);
-  console.log(`🌍 CORS habilitado para: ${FRONTEND_URL}`);
 });
-
-export default app;

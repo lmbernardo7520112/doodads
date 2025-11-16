@@ -11,6 +11,7 @@ import {
   listarMinhasReservas,
   cancelarReserva,
   pagarReservaSimulado,
+  getReservaById,  // ⬅️ ADICIONADO
 } from "../controllers/reserva.controller";
 import generateSlots from "../utils/generateSlots";
 
@@ -18,6 +19,10 @@ const router = Router();
 
 router.post("/", authMiddleware, criarReserva);
 router.get("/minhas", authMiddleware, listarMinhasReservas);
+
+// ⬅️ NOVO ENDPOINT — ESSENCIAL PARA O PAGAMENTO-SUCESSO
+router.get("/:id", authMiddleware, getReservaById);
+
 router.patch("/:id/cancelar", authMiddleware, cancelarReserva);
 
 // ⚠️ Pagamento simulado (dev)
@@ -38,3 +43,4 @@ router.get("/:barbeariaId/slots", async (req, res) => {
 });
 
 export default router;
+

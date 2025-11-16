@@ -14,17 +14,51 @@ const getUserInfo = (req: Request) => {
 };
 
 // =============================================================
+// NEW: GET /reservas/:id
+// =============================================================
+export const getReservaById = async (req: Request, res: Response) => {
+  try {
+    const { id: usuarioId } = getUserInfo(req);
+    const { id } = req.params;
+
+    if (!usuarioId) return res.status(401).json({ message: "Não autorizado." });
+
+    const reserva = await Reserva.findById(id)
+      .populate("barbearia", "nome imagem telefone1")
+      .populate("servico", "nome preco duracaoMin");
+
+    if (!reserva) return res.status(404).json({ message: "Reserva não encontrada." });
+
+    if (String(reserva.usuario) !== String(usuarioId))
+      return res.status(403).json({ message: "Acesso negado à reserva." });
+
+    return res.status(200).json(reserva);
+  } catch (error) {
+    console.error("❌ Erro ao buscar reserva:", error);
+    return res.status(500).json({ message: "Erro ao buscar reserva." });
+  }
+};
+
+// =============================================================
 // GET /reservas/minhas
 // =============================================================
 export const listarMinhasReservas = async (req: Request, res: Response) => {
   try {
     const { id: usuarioId } = getUserInfo(req);
-    if (!usuarioId) return res.status(401).json({ message: "Não autorizado." });
+
+    console.log("🔎 [listarMinhasReservas] usuarioId =", usuarioId);
+
+    if (!usuarioId) {
+      console.log("⛔ [listarMinhasReservas] SEM usuarioId");
+      return res.status(401).json({ message: "Não autorizado." });
+    }
 
     const reservas = await Reserva.find({ usuario: usuarioId })
       .populate("barbearia", "nome imagem telefone1")
       .populate("servico", "nome preco duracaoMin")
       .sort({ dataHora: -1 });
+
+    console.log("📦 [listarMinhasReservas] retornando", reservas.length, "reservas");
 
     return res.status(200).json(reservas);
   } catch (error) {
@@ -171,4 +205,3 @@ export const pagarReservaSimulado = async (req: Request, res: Response) => {
     return res.status(500).json({ message: "Erro ao simular pagamento." });
   }
 };
-

@@ -1,7 +1,6 @@
 // =============================================================
-// 🎉 pagamento-sucesso/page.tsx
-// Confirmação do pagamento + atualização da reserva
-// Agora redireciona para HOME após confirmar.
+// 🎉 pagamento-sucesso/page.tsx — versão revisada e corrigida
+// Corrige problema de SWR stale data na Home após pagamento
 // =============================================================
 
 "use client";
@@ -12,13 +11,15 @@ import toast from "react-hot-toast";
 import api from "@/lib/api";
 import { useReservas } from "@/hooks/useReservas";
 
+// ✅ mutate global correto: vem do SWR, não do hook
+import { mutate as globalMutate } from "swr";
+
 export default function PagamentoSucessoPage() {
   const search = useSearchParams();
   const router = useRouter();
   const reservaId = search?.get("reserva");
 
-  // Agora useReservas retorna mutate corretamente
-  const { mutate } = useReservas();
+  const { mutate } = useReservas(); // mutate local do hook
 
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<string | null>(null);
@@ -44,30 +45,30 @@ export default function PagamentoSucessoPage() {
         const r = res.data;
         setStatus(r.status);
 
-        // SE JÁ CONFIRMADO, atualiza SWR e redireciona
         if (r.status === "confirmado" || r.paymentStatus === "aprovado") {
-          toast.success("Pagamento confirmado! Atualizando...");
+          toast.success("Pagamento confirmado!");
 
-          // Atualiza lista de reservas na HOME
-          mutate?.();
+          // ======================================================
+          // 🔥 Correção final: atualizar SWR local + SWR global
+          // ======================================================
+          await mutate?.(); // atualiza hook
+          await globalMutate("/reservas/minhas"); // força atualização global
 
+          router.refresh();
           setLoading(false);
 
-          // Redirecionar para a HOME 🏠
           setTimeout(() => {
             router.push("/");
           }, 800);
 
           return;
         }
-      } catch (err) {
-        // erro temporário → ignora e continua polling
-      }
+      } catch {}
 
       attempts++;
       if (attempts >= MAX_ATTEMPTS) {
         setLoading(false);
-        toast("Pagamento recebido, mas ainda não atualizado. Tente novamente depois.", { icon: "⏳" });
+        toast("Pagamento recebido, mas ainda não atualizado. Tente mais tarde.", { icon: "⏳" });
         return;
       }
 
@@ -75,10 +76,7 @@ export default function PagamentoSucessoPage() {
     };
 
     pollReserva();
-
-    return () => {
-      active = false;
-    };
+    return () => { active = false };
   }, [reservaId, mutate, router]);
 
   return (
@@ -101,8 +99,10 @@ export default function PagamentoSucessoPage() {
 
             <button
               className="px-4 py-2 bg-black text-white rounded w-full"
-              onClick={() => {
-                mutate?.();
+              onClick={async () => {
+                await mutate?.();
+                await globalMutate("/reservas/minhas"); // 👈 garante home atualizada
+                router.refresh();
                 router.push("/");
               }}
             >
@@ -114,3 +114,4 @@ export default function PagamentoSucessoPage() {
     </div>
   );
 }
+
