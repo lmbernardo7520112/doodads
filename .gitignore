@@ -1,6 +1,8 @@
 # Dependências Node.js
 node_modules/
 
+server/.env.test
+
 # Ferramentas e Relatórios
 ..bfg-report/
 
