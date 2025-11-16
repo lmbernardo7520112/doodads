@@ -1,40 +1,25 @@
 // =============================================================
 // 📅 server/controllers/reserva.controller.ts
 // -------------------------------------------------------------
-// Controla CRUD de reservas (agendamentos)
+// CRUD + pagamento simulado (desenvolvimento)
 // =============================================================
 
 import { Request, Response } from "express";
 import Reserva from "../models/Reserva";
 import Barbearia from "../models/Barbearia";
 
-// =============================================================
-// 🔹 GET /reservas  → lista geral
-// =============================================================
-export const listarReservas = async (_req: Request, res: Response) => {
-  try {
-    const reservas = await Reserva.find()
-      .populate("barbearia", "nome endereco imagem")
-      .populate("usuario", "nomeCompleto email")
-      .sort({ dataHora: -1 });
-
-    return res.status(200).json(reservas); // sempre array
-  } catch (error) {
-    console.error("❌ Erro ao listar reservas:", error);
-    return res.status(500).json({ message: "Erro ao listar reservas." });
-  }
+const getUserInfo = (req: Request) => {
+  const user = (req as any).user || {};
+  return { id: user.id, tipo: user.tipo };
 };
 
 // =============================================================
-// 🔹 GET /reservas/minhas  → lista SÓ DO USUÁRIO LOGADO
+// GET /reservas/minhas
 // =============================================================
 export const listarMinhasReservas = async (req: Request, res: Response) => {
   try {
-    const usuarioId = (req as any).user?.id;
-
-    if (!usuarioId) {
-      return res.status(401).json({ message: "Não autorizado." });
-    }
+    const { id: usuarioId } = getUserInfo(req);
+    if (!usuarioId) return res.status(401).json({ message: "Não autorizado." });
 
     const reservas = await Reserva.find({ usuario: usuarioId })
       .populate("barbearia", "nome imagem telefone1")
@@ -49,53 +34,47 @@ export const listarMinhasReservas = async (req: Request, res: Response) => {
 };
 
 // =============================================================
-// 🔹 POST /reservas  → criar reserva
+// POST /reservas → CRIAR
 // =============================================================
 export const criarReserva = async (req: Request, res: Response) => {
   try {
-    const usuarioId = (req as any).user?.id;
-    if (!usuarioId) {
-      return res.status(401).json({ message: "Não autorizado." });
-    }
+    const { id: usuarioId } = getUserInfo(req);
+    if (!usuarioId) return res.status(401).json({ message: "Não autorizado." });
 
     const { barbearia, servico, dataHora, valor } = req.body;
 
-    if (!barbearia || !servico || !dataHora) {
+    if (!barbearia || !servico || !dataHora)
       return res.status(400).json({ message: "Dados incompletos para criar reserva." });
-    }
 
     const barbeariaExiste = await Barbearia.findById(barbearia);
-    if (!barbeariaExiste) {
+    if (!barbeariaExiste)
       return res.status(404).json({ message: "Barbearia não encontrada." });
-    }
 
-    // Verificar conflito de horário
+    const data = new Date(dataHora);
+    if (isNaN(data.getTime()))
+      return res.status(400).json({ message: "Data inválida." });
+
     const conflito = await Reserva.findOne({
       barbearia,
       servico,
-      dataHora,
+      dataHora: data,
       status: { $ne: "cancelado" },
     });
 
-    if (conflito) {
+    if (conflito)
       return res.status(409).json({ message: "Horário já reservado." });
-    }
 
     const reserva = await Reserva.create({
       usuario: usuarioId,
       barbearia,
       servico,
-      dataHora,
+      dataHora: data,
       valor,
-      status: "pendente", // PRD-004
+      status: "pendente",
+      paymentStatus: "pendente",
     });
 
-    console.log("✅ Reserva criada com status 'pendente':", reserva._id);
-
-    return res.status(201).json({
-      message: "Reserva criada com sucesso!",
-      reserva,
-    });
+    return res.status(201).json({ message: "Reserva criada com sucesso!", reserva });
   } catch (error) {
     console.error("❌ Erro ao criar reserva:", error);
     return res.status(500).json({ message: "Erro ao criar reserva." });
@@ -103,57 +82,47 @@ export const criarReserva = async (req: Request, res: Response) => {
 };
 
 // =============================================================
-// 🔹 GET /reservas/:id  → obter detalhes
-// =============================================================
-export const obterReservaPorId = async (req: Request, res: Response) => {
-  try {
-    const reserva = await Reserva.findById(req.params.id)
-      .populate("barbearia", "nome endereco imagem")
-      .populate("usuario", "nomeCompleto email")
-      .populate("servico", "nome preco duracaoMin");
-
-    if (!reserva) {
-      return res.status(404).json({ message: "Reserva não encontrada." });
-    }
-
-    return res.json(reserva);
-  } catch (error) {
-    console.error("❌ Erro ao obter reserva:", error);
-    return res.status(500).json({ message: "Erro ao buscar reserva." });
-  }
-};
-
-// =============================================================
-// 🔹 PATCH /reservas/:id/cancelar  → cancelar reserva
+// PATCH /reservas/:id/cancelar
 // =============================================================
 export const cancelarReserva = async (req: Request, res: Response) => {
   try {
-    const usuarioId = (req as any).user?.id;
+    const { id: usuarioId, tipo: usuarioTipo } = getUserInfo(req);
     const { id } = req.params;
 
-    if (!usuarioId) {
-      return res.status(401).json({ message: "Não autorizado." });
-    }
+    const body = req.body || {};
+    const reason = body.reason || "";
+
+    if (!usuarioId) return res.status(401).json({ message: "Não autorizado." });
 
     const reserva = await Reserva.findById(id);
+    if (!reserva) return res.status(404).json({ message: "Reserva não encontrado." });
 
-    if (!reserva) {
-      return res.status(404).json({ message: "Reserva não encontrada." });
-    }
+    const isOwner = String(reserva.usuario) === String(usuarioId);
+    const isPrivileged =
+      ["barbeiro", "admin", "staff"].includes(usuarioTipo);
 
-    if (String(reserva.usuario) !== usuarioId) {
+    if (!isOwner && !isPrivileged)
       return res.status(403).json({ message: "Você não pode cancelar esta reserva." });
-    }
 
-    if (reserva.status === "cancelado") {
+    if (reserva.status === "cancelado")
       return res.status(400).json({ message: "Esta reserva já está cancelada." });
+
+    const cutoffMinutes = Number(process.env.CANCEL_CUTOFF_MINUTES || "60");
+    const now = new Date();
+    const diffMinutes =
+      (new Date(reserva.dataHora).getTime() - now.getTime()) / 60000;
+
+    if (diffMinutes < cutoffMinutes && !isPrivileged) {
+      return res.status(400).json({
+        message: `Cancelamento não permitido: só é possível cancelar até ${cutoffMinutes} minutos antes do horário.`,
+      });
     }
 
     reserva.status = "cancelado";
     reserva.canceladoEm = new Date();
-    await reserva.save();
+    if (reason.trim().length > 0) reserva.cancelReason = reason.trim();
 
-    console.log("❌ Reserva cancelada:", reserva._id);
+    await reserva.save();
 
     return res.json({
       message: "Reserva cancelada com sucesso!",
@@ -164,3 +133,42 @@ export const cancelarReserva = async (req: Request, res: Response) => {
     return res.status(500).json({ message: "Erro ao cancelar reserva." });
   }
 };
+
+// =============================================================
+// PATCH /reservas/:id/pagar → SIMULADO
+// =============================================================
+export const pagarReservaSimulado = async (req: Request, res: Response) => {
+  try {
+    const { id: usuarioId } = getUserInfo(req);
+    const { id } = req.params;
+
+    const reserva = await Reserva.findById(id);
+
+    if (!reserva) return res.status(404).json({ message: "Reserva não encontrada." });
+
+    if (String(reserva.usuario) !== String(usuarioId))
+      return res.status(403).json({ message: "Você não pode pagar por esta reserva." });
+
+    if (reserva.status === "cancelado")
+      return res.status(400).json({ message: "Reserva já cancelada." });
+
+    if (reserva.paymentStatus === "aprovado")
+      return res.status(400).json({ message: "Pagamento já aprovado." });
+
+    reserva.paymentStatus = "aprovado";
+    reserva.status = "confirmado";
+    reserva.confirmadoEm = new Date();
+    reserva.paymentId = "simulated-payment-" + reserva._id;
+
+    await reserva.save();
+
+    return res.json({
+      message: "Pagamento simulado aprovado!",
+      reserva,
+    });
+  } catch (error) {
+    console.error("❌ Erro ao simular pagamento:", error);
+    return res.status(500).json({ message: "Erro ao simular pagamento." });
+  }
+};
+

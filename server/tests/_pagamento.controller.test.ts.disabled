@@ -1,0 +1,144 @@
+// =============================================================
+// 🎯 Pagamento Controller — Fluxo Real com Stripe
+// -------------------------------------------------------------
+// Correções adicionadas (sem remover funcionalidades):
+//  - Evita crash nos testes ao instanciar Stripe sem chave
+//  - Garante que stripe só é criado em ambiente real
+//  - Mantém 100% da funcionalidade original
+//  - Melhora logs e fallback seguro
+// =============================================================
+
+import { Request, Response } from "express";
+import Stripe from "stripe";
+import Reserva from "../models/Reserva";
+
+// =============================================================
+// 🛡️ Instancia Stripe somente se houver chave válida
+// (evita erro "Neither apiKey nor config.authenticator provided")
+// =============================================================
+
+let stripe: Stripe;
+
+if (process.env.STRIPE_SECRET_KEY && process.env.STRIPE_SECRET_KEY !== "") {
+  stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: "2025-10-29.clover",
+  });
+} else {
+  console.warn("⚠️ Stripe DISABLED: STRIPE_SECRET_KEY não encontrada.");
+  // Mock vazio para não quebrar importações e rotas
+  stripe = {
+    checkout: { sessions: { create: async () => ({ url: "" }) } },
+    webhooks: { constructEvent: () => ({}) },
+  } as any;
+}
+
+export { stripe };
+
+// =============================================================
+// POST /pagamento/checkout
+// =============================================================
+export const criarCheckout = async (req: Request, res: Response) => {
+  try {
+    const { reservaId } = req.body;
+    const usuarioId = (req as any).user?.id;
+
+    if (!reservaId)
+      return res.status(400).json({ message: "reservaId é obrigatório." });
+
+    const reserva = await Reserva.findById(reservaId)
+      .populate("servico", "nome preco")
+      .populate("barbearia", "nome");
+
+    if (!reserva)
+      return res.status(404).json({ message: "Reserva não encontrada." });
+
+    if (String(reserva.usuario) !== usuarioId)
+      return res.status(403).json({ message: "Esta reserva não é sua." });
+
+    if (reserva.paymentStatus === "aprovado")
+      return res
+        .status(400)
+        .json({ message: "Pagamento já efetuado." });
+
+    // =============================================================
+    // Stripe Session
+    // =============================================================
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      payment_method_types: ["card"],
+      success_url: `${process.env.FRONTEND_URL}/pagamento-sucesso?reserva=${reserva.id}`,
+      cancel_url: `${process.env.FRONTEND_URL}/pagamento-cancelado?reserva=${reserva.id}`,
+      metadata: {
+        reservaId: reserva.id,
+      },
+      line_items: [
+        {
+          price_data: {
+            currency: "brl",
+            product_data: { name: reserva.servico["nome"] },
+            unit_amount: Math.round(
+              Number(reserva.valor || reserva.servico["preco"]) * 100
+            ),
+          },
+          quantity: 1,
+        },
+      ],
+    });
+
+    return res.json({ url: session.url });
+  } catch (error) {
+    console.error("❌ Erro no checkout:", error);
+    return res
+      .status(500)
+      .json({ message: "Erro ao criar sessão de pagamento." });
+  }
+};
+
+// =============================================================
+// POST /pagamento/webhook
+// =============================================================
+export const receberWebhook = async (req: Request, res: Response) => {
+  try {
+    const signature = req.headers["stripe-signature"] as string;
+
+    // =============================================================
+    // Construção segura do evento Stripe
+    // =============================================================
+    let evento;
+    try {
+      evento = stripe.webhooks.constructEvent(
+        req.body,
+        signature,
+        process.env.STRIPE_WEBHOOK_SECRET as string
+      );
+    } catch (err: any) {
+      console.error("Webhook inválido:", err.message);
+      return res.status(400).send(`Webhook error: ${err.message}`);
+    }
+
+    // =============================================================
+    // checkout.session.completed → pagamento aprovado
+    // =============================================================
+    if (evento.type === "checkout.session.completed") {
+      const dados = evento.data.object as any;
+      const reservaId = dados.metadata.reservaId;
+
+      const reserva = await Reserva.findById(reservaId);
+      if (!reserva) return res.status(200).send("ok");
+
+      reserva.status = "confirmado";
+      reserva.paymentStatus = "aprovado";
+      reserva.confirmadoEm = new Date();
+      reserva.paymentId = dados.id;
+
+      await reserva.save();
+
+      console.log("🎉 Reserva confirmada via Stripe webhook:", reservaId);
+    }
+
+    return res.status(200).send("ok");
+  } catch (error) {
+    console.error("Erro no webhook:", error);
+    return res.status(500).send("erro");
+  }
+};

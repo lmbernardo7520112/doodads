@@ -4,13 +4,13 @@
 // Define endpoints REST para reservas
 // =============================================================
 
-
 import { Router } from "express";
 import authMiddleware from "../middlewares/authMiddleware";
 import {
   criarReserva,
   listarMinhasReservas,
   cancelarReserva,
+  pagarReservaSimulado,
 } from "../controllers/reserva.controller";
 import generateSlots from "../utils/generateSlots";
 
@@ -20,7 +20,10 @@ router.post("/", authMiddleware, criarReserva);
 router.get("/minhas", authMiddleware, listarMinhasReservas);
 router.patch("/:id/cancelar", authMiddleware, cancelarReserva);
 
-// rota de geração de horários
+// ⚠️ Pagamento simulado (dev)
+router.patch("/:id/pagar", authMiddleware, pagarReservaSimulado);
+
+// Slots disponíveis
 router.get("/:barbeariaId/slots", async (req, res) => {
   const { barbeariaId } = req.params;
   const { date, servicoId } = req.query;

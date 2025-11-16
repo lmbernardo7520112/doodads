@@ -2,19 +2,24 @@
 // 📅 components/ui/AppointmentCard.tsx
 // -------------------------------------------------------------
 // Exibe o resumo de uma reserva (agendamento do cliente)
-// Compatível com PRD-004 — inclui status visual e sem regressões
+// Agora com botão "Pagar Agora" integrado ao Stripe Checkout
+// SEM REMOVER nenhuma funcionalidade existente
 // =============================================================
 
 "use client";
 
 import Image from "next/image";
-import { CheckCircle, Clock, XCircle, Timer } from "lucide-react";
+import { CheckCircle, Clock, XCircle, Timer, CreditCard } from "lucide-react";
+import toast from "react-hot-toast";
+import api from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 
 interface AppointmentCardProps {
   reserva: {
     _id: string;
     dataHora: string;
     status: "pendente" | "confirmado" | "cancelado" | "finalizado";
+    paymentStatus?: "pendente" | "aprovado" | "falhou";
     barbearia?: {
       nome: string;
       imagem?: string;
@@ -29,7 +34,8 @@ interface AppointmentCardProps {
 }
 
 export default function AppointmentCard({ reserva }: AppointmentCardProps) {
-  // Use toLocaleString para mostrar data + hora corretamente
+  const { token } = useAuth();
+
   const data = new Date(reserva.dataHora).toLocaleString("pt-BR", {
     day: "2-digit",
     month: "short",
@@ -42,9 +48,6 @@ export default function AppointmentCard({ reserva }: AppointmentCardProps) {
     reserva.barbearia?.imagem ||
     "https://thumbs.dreamstime.com/z/barber-shop-chair-stylish-vintage-barber-chair-barbershop-armchair-modern-hairdresser-hair-salon-barber-shop-barber-shop-127929653.jpg?ct=jpeg";
 
-  // =============================================================
-  // 🎨 Função auxiliar para exibir status com cor e ícone
-  // =============================================================
   const getStatusInfo = () => {
     switch (reserva.status) {
       case "confirmado":
@@ -83,40 +86,90 @@ export default function AppointmentCard({ reserva }: AppointmentCardProps) {
   const { icon, label, color } = getStatusInfo();
 
   // =============================================================
+  // 💳 Função que abre o checkout no Stripe
+  // =============================================================
+  const handlePagamento = async () => {
+    if (!token) {
+      toast.error("Você precisa estar autenticado.");
+      return;
+    }
+
+    try {
+      toast.loading("Redirecionando para pagamento...");
+
+      const res = await api.post(
+        "/pagamento/checkout",
+        { reservaId: reserva._id },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      toast.dismiss();
+      if (res.data?.url) {
+        window.location.href = res.data.url;
+      } else {
+        toast.error("Falha ao iniciar pagamento.");
+      }
+    } catch (err: any) {
+      toast.dismiss();
+      console.error("Erro ao iniciar checkout:", err);
+      toast.error(err?.response?.data?.message || "Erro ao iniciar pagamento.");
+    }
+  };
+
+  // =============================================================
   // 💅 Renderização
   // =============================================================
   return (
-    <div className="flex gap-3 items-center bg-white rounded-xl shadow-sm p-3 hover:shadow-md transition">
-      {/* 🖼️ Imagem da barbearia */}
-      <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg">
-        <Image
-          src={imagemSrc}
-          alt={`Imagem da barbearia ${reserva.barbearia?.nome ?? ""}`}
-          fill
-          className="object-cover"
-          sizes="100vw"
-        />
+    <div className="flex flex-col gap-3 bg-white rounded-xl shadow-sm p-3 hover:shadow-md transition">
+
+      {/* Linha superior */}
+      <div className="flex gap-3 items-center">
+        <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg">
+          <Image
+            src={imagemSrc}
+            alt={`Imagem da barbearia ${reserva.barbearia?.nome ?? ""}`}
+            fill
+            className="object-cover"
+            sizes="100vw"
+          />
+        </div>
+
+        <div className="flex flex-col justify-center flex-1">
+          <h3 className="font-semibold text-gray-900">
+            {reserva.barbearia?.nome ?? "Barbearia não identificada"}
+          </h3>
+
+          <p className="text-sm text-gray-600">
+            {reserva.servico?.nome ?? "Serviço"} — 💰 R${" "}
+            {reserva.servico?.preco?.toFixed(2) ?? "0,00"}
+          </p>
+
+          <p className="text-xs text-gray-500">{data}</p>
+
+          <p className={`flex items-center gap-1 text-xs font-medium ${color}`}>
+            {icon}
+            {label}
+          </p>
+        </div>
       </div>
 
-      {/* 📋 Informações da reserva */}
-      <div className="flex flex-col justify-center flex-1">
-        <h3 className="font-semibold text-gray-900">
-          {reserva.barbearia?.nome ?? "Barbearia não identificada"}
-        </h3>
-
-        <p className="text-sm text-gray-600">
-          {reserva.servico?.nome ?? "Serviço"} — 💰 R${" "}
-          {reserva.servico?.preco?.toFixed(2) ?? "0,00"}
-        </p>
-
-        <p className="text-xs text-gray-500">{data}</p>
-
-        {/* 🟡 Status visual */}
-        <p className={`flex items-center gap-1 text-xs font-medium ${color}`}>
-          {icon}
-          {label}
-        </p>
-      </div>
+      {/* =============================================================
+          💳 BOTÃO PAGAR AGORA
+         Só aparece quando:
+         - status é pendente
+         - paymentStatus é pendente ou inexistente
+         ============================================================= */}
+      {reserva.status === "pendente" &&
+        (reserva.paymentStatus === "pendente" ||
+          !reserva.paymentStatus) && (
+          <button
+            onClick={handlePagamento}
+            className="w-full bg-black text-white rounded-lg py-2 font-medium flex items-center justify-center gap-2 hover:bg-gray-800 transition"
+          >
+            <CreditCard className="w-4 h-4" />
+            Pagar agora
+          </button>
+        )}
     </div>
   );
 }

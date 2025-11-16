@@ -1,3 +1,4 @@
+//server/models/Pagamentos.ts
 import mongoose, { Schema, Document, Types } from "mongoose";
 
 export interface IPagamento extends Document {

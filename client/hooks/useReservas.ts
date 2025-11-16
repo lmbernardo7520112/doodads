@@ -2,6 +2,10 @@
 // 🎯 useReservas.ts — Hook de reservas (agendamentos) com polling
 // =============================================================
 
+// =============================================================
+// 🎯 useReservas.ts — Hook de reservas (agendamentos) com polling
+// =============================================================
+
 "use client";
 
 import { useEffect } from "react";
@@ -21,7 +25,7 @@ export function useReservas() {
     return Array.isArray(res.data) ? res.data : [];
   };
 
-  const { data, error, isLoading, mutate } = useSWR(
+  const { data, error, isLoading, mutate, isValidating } = useSWR(
     token ? "/reservas/minhas" : null,
     fetcher,
     { revalidateOnFocus: false }
@@ -38,5 +42,9 @@ export function useReservas() {
     data: data || [],
     loading: isLoading,
     error,
+
+    // 🔥🔥🔥 ADICIONADO — sem quebrar nada
+    mutate,
+    isValidating,
   };
 }
