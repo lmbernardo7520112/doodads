@@ -1,9 +1,6 @@
 // =============================================================
-// 📅 components/ui/AppointmentCard.tsx
-// -------------------------------------------------------------
-// Exibe o resumo de uma reserva (agendamento do cliente)
-// Agora com botão "Pagar Agora" integrado ao Stripe Checkout
-// SEM REMOVER nenhuma funcionalidade existente
+// 📅 components/ui/AppointmentCard.tsx — versão FINAL
+// Integrado com Checkout Stripe + Debug reforçado
 // =============================================================
 
 "use client";
@@ -35,6 +32,10 @@ interface AppointmentCardProps {
 
 export default function AppointmentCard({ reserva }: AppointmentCardProps) {
   const { token } = useAuth();
+
+  console.debug(
+    `🧾 [AppointmentCard] render reserva=${reserva._id} status=${reserva.status} paymentStatus=${reserva.paymentStatus}`
+  );
 
   const data = new Date(reserva.dataHora).toLocaleString("pt-BR", {
     day: "2-digit",
@@ -86,9 +87,11 @@ export default function AppointmentCard({ reserva }: AppointmentCardProps) {
   const { icon, label, color } = getStatusInfo();
 
   // =============================================================
-  // 💳 Função que abre o checkout no Stripe
+  // 💳 Função de pagamento (Stripe Checkout)
   // =============================================================
   const handlePagamento = async () => {
+    console.debug(`💳 [AppointmentCard] Iniciando pagamento para ${reserva._id}`);
+
     if (!token) {
       toast.error("Você precisa estar autenticado.");
       return;
@@ -104,20 +107,28 @@ export default function AppointmentCard({ reserva }: AppointmentCardProps) {
       );
 
       toast.dismiss();
+
       if (res.data?.url) {
+        console.debug(
+          `➡️ [AppointmentCard] Redirecionando para Stripe checkout: ${res.data.url}`
+        );
         window.location.href = res.data.url;
       } else {
-        toast.error("Falha ao iniciar pagamento.");
+        console.error(
+          "❌ [AppointmentCard] Resposta inesperada do checkout:",
+          res.data
+        );
+        toast.error("Erro ao iniciar pagamento.");
       }
     } catch (err: any) {
       toast.dismiss();
-      console.error("Erro ao iniciar checkout:", err);
+      console.error("❌ [AppointmentCard] Erro ao iniciar checkout:", err);
       toast.error(err?.response?.data?.message || "Erro ao iniciar pagamento.");
     }
   };
 
   // =============================================================
-  // 💅 Renderização
+  // Render UI
   // =============================================================
   return (
     <div className="flex flex-col gap-3 bg-white rounded-xl shadow-sm p-3 hover:shadow-md transition">
@@ -155,9 +166,6 @@ export default function AppointmentCard({ reserva }: AppointmentCardProps) {
 
       {/* =============================================================
           💳 BOTÃO PAGAR AGORA
-         Só aparece quando:
-         - status é pendente
-         - paymentStatus é pendente ou inexistente
          ============================================================= */}
       {reserva.status === "pendente" &&
         (reserva.paymentStatus === "pendente" ||

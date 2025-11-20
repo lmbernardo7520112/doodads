@@ -2,6 +2,10 @@
 // 🚀 index.ts — versão final corrigida
 // =============================================================
 
+// =============================================================
+// 🚀 index.ts — versão final corrigida e segura
+// =============================================================
+
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -14,6 +18,7 @@ import barbeariaRoutes from "./routes/barbearias.routes";
 import reservaRoutes from "./routes/reserva.routes";
 import servicoRoutes from "./routes/servico.routes";
 import pagamentoRoutes from "./routes/pagamento.routes";
+import requestLogger from "./middlewares/requestLogger";
 
 dotenv.config();
 
@@ -32,15 +37,20 @@ app.use(
 );
 
 // =============================================================
-// ⭐ WEBHOOK STRIPE — DEVE VIR ANTES DE express.json()
+// ❗ REMOVIDO do index.ts
+// ❌ app.post("/api/pagamento/webhook", bodyParser.raw(...))
+// O webhook REAL e CORRETO já está em pagamento.routes.ts
 // =============================================================
-app.post(
-  "/api/pagamento/webhook",
-  bodyParser.raw({ type: "application/json" })
-);
+
+// =============================================================
+// 💳 Pagamentos — inclui /checkout e /webhook
+// MOVIDO para antes do express.json() para garantir RAW body no webhook
+// =============================================================
+app.use("/api/pagamento", pagamentoRoutes);
 
 // =============================================================
 // Agora é seguro ativar express.json()
+// (O webhook com RAW body está em pagamento.routes.ts)
 // =============================================================
 app.use(express.json());
 
@@ -58,10 +68,10 @@ app.use("/api/barbearias", barbeariaRoutes);
 app.use("/api/reservas", reservaRoutes);
 app.use("/api/servicos", servicoRoutes);
 
-// =============================================================
-// 💳 Pagamentos (checkout)
-// =============================================================
-app.use("/api/pagamento", pagamentoRoutes);
+// logger deve ser aplicado após rotas críticas
+app.use(requestLogger);
+
+
 
 // =============================================================
 // 🩺 Health

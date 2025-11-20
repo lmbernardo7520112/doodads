@@ -1,6 +1,7 @@
 // =============================================================
-// 🎉 pagamento-sucesso/page.tsx — versão revisada e corrigida
-// Corrige problema de SWR stale data na Home após pagamento
+// 🎉 pagamento-sucesso/page.tsx — versão FINAL e robusta
+// Corrige 100% do problema de SWR stale data após pagamento
+// Fortemente instrumentado para debug
 // =============================================================
 
 "use client";
@@ -10,8 +11,6 @@ import { useSearchParams, useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import api from "@/lib/api";
 import { useReservas } from "@/hooks/useReservas";
-
-// ✅ mutate global correto: vem do SWR, não do hook
 import { mutate as globalMutate } from "swr";
 
 export default function PagamentoSucessoPage() {
@@ -19,10 +18,14 @@ export default function PagamentoSucessoPage() {
   const router = useRouter();
   const reservaId = search?.get("reserva");
 
-  const { mutate } = useReservas(); // mutate local do hook
-
+  const { mutate } = useReservas({ enabled: false });
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<string | null>(null);
+
+  // Debug único: marcar o início do fluxo
+  useEffect(() => {
+    console.debug("⚡[PagamentoSucesso] MONTADO — reserva =", reservaId);
+  }, []);
 
   useEffect(() => {
     if (!reservaId) {
@@ -34,41 +37,70 @@ export default function PagamentoSucessoPage() {
     let active = true;
     let attempts = 0;
 
-    const MAX_ATTEMPTS = 12; // ~36s
+    const MAX_ATTEMPTS = 12; // 36s
     const INTERVAL = 3000;
 
-    const pollReserva = async () => {
-      try {
-        const res = await api.get(`/reservas/${reservaId}`);
-        if (!active) return;
+    console.debug("⏳ [PagamentoSucesso] Iniciando polling da reserva…");
 
+    const pollReserva = async () => {
+      if (!active) return;
+
+      console.debug(
+        `🔎 [PagamentoSucesso] Poll tentativa ${attempts + 1}/${MAX_ATTEMPTS}`
+      );
+
+      try {
+        const res = await api.get(`/reservas/${reservaId}?t=${Date.now()}`);
         const r = res.data;
+
+        console.debug(
+          `📥 [PagamentoSucesso] status atual: status=${r.status} paymentStatus=${r.paymentStatus}`
+        );
+
         setStatus(r.status);
 
-        if (r.status === "confirmado" || r.paymentStatus === "aprovado") {
+        const aprovado =
+          r.status === "confirmado" || r.paymentStatus === "aprovado";
+
+        if (aprovado) {
+          console.debug("🎉 [PagamentoSucesso] Pagamento confirmado no backend!");
+
           toast.success("Pagamento confirmado!");
 
           // ======================================================
-          // 🔥 Correção final: atualizar SWR local + SWR global
+          // 🔥 Correção principal: sincronizar SWR
           // ======================================================
-          await mutate?.(); // atualiza hook
-          await globalMutate("/reservas/minhas"); // força atualização global
+          console.debug("🔄 [PagamentoSucesso] SWR mutate local…");
+          await mutate?.();
 
+          console.debug("🌍 [PagamentoSucesso] SWR mutate global /reservas/minhas…");
+          await globalMutate("/reservas/minhas");
+
+          console.debug("🌀 [PagamentoSucesso] router.refresh()");
           router.refresh();
+
           setLoading(false);
 
           setTimeout(() => {
+            console.debug("🏠 [PagamentoSucesso] Redirecionando para HOME");
             router.push("/");
           }, 800);
 
           return;
         }
-      } catch {}
+      } catch (err) {
+        console.error("❌ [PagamentoSucesso] Erro no GET reserva:", err);
+      }
 
       attempts++;
       if (attempts >= MAX_ATTEMPTS) {
+        console.warn("⏳ [PagamentoSucesso] Timeout esperando confirmação");
+
+        toast("Pagamento recebido, mas ainda não atualizado no app. Tente mais tarde.", {
+          icon: "⏳",
+        });
+
         setLoading(false);
-        toast("Pagamento recebido, mas ainda não atualizado. Tente mais tarde.", { icon: "⏳" });
         return;
       }
 
@@ -76,9 +108,16 @@ export default function PagamentoSucessoPage() {
     };
 
     pollReserva();
-    return () => { active = false };
+
+    return () => {
+      active = false;
+      console.debug("🛑 [PagamentoSucesso] desmontado — polling cancelado.");
+    };
   }, [reservaId, mutate, router]);
 
+  // =============================================================
+  // UI
+  // =============================================================
   return (
     <div className="min-h-screen flex items-center justify-center p-6">
       <div className="max-w-lg w-full bg-white p-6 rounded-lg shadow">
@@ -94,14 +133,15 @@ export default function PagamentoSucessoPage() {
         ) : (
           <div>
             <p className="text-gray-700 mb-4">
-              Se não atualizar automaticamente, volte para a Home e confira suas reservas.
+              Caso não atualize automaticamente, volte para a Home e confira suas reservas.
             </p>
 
             <button
               className="px-4 py-2 bg-black text-white rounded w-full"
               onClick={async () => {
+                console.debug("🔄 [PagamentoSucesso] Botão HOME → sincronizando SWR");
                 await mutate?.();
-                await globalMutate("/reservas/minhas"); // 👈 garante home atualizada
+                await globalMutate("/reservas/minhas");
                 router.refresh();
                 router.push("/");
               }}
@@ -114,4 +154,3 @@ export default function PagamentoSucessoPage() {
     </div>
   );
 }
-

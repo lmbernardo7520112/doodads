@@ -15,7 +15,7 @@ export default function HomePage() {
   const [query, setQuery] = useState("");
   const [sel, setSel] = useState<number | null>(0);
   const { data: barbearias } = useBarbearias(query);
-  const reservas = useReservas();
+  const { data: reservas } = useReservas();
 
   return (
     <div className="space-y-6">

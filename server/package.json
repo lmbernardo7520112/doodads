@@ -9,7 +9,8 @@
     "seed": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config ./seed/populateDataBaseSeed.ts",
     "build": "next build",
     "test": "jest --runInBand",
-    "start": "next start"
+    "start": "next start",
+    "stripe:listen": "stripe listen --forward-to localhost:3000/api/pagamento/webhook"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -20,7 +21,8 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.19.3",
     "multer": "^2.0.2",
-    "stripe": "^19.3.1"
+    "stripe": "^19.3.1",
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.28.5",
