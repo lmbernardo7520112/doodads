@@ -3,6 +3,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { AuthProvider } from "@/context/AuthContext";
 import { Toaster } from "react-hot-toast";
+import { VoiceAssistant } from "@/components/VoiceAssistant";
 
 export const metadata = {
   title: "Doodads",
@@ -16,6 +17,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <AuthProvider>
           <Navbar />
           <main className="mx-auto max-w-3xl p-4">{children}</main>
+          <VoiceAssistant />
           <Footer />
           {/* 🔔 Toasts globais */}
           <Toaster position="top-right" />

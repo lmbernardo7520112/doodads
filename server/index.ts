@@ -18,6 +18,7 @@ import barbeariaRoutes from "./routes/barbearias.routes";
 import reservaRoutes from "./routes/reserva.routes";
 import servicoRoutes from "./routes/servico.routes";
 import pagamentoRoutes from "./routes/pagamento.routes";
+import voiceRoutes from "./routes/voice.routes"; // Added this line
 import requestLogger from "./middlewares/requestLogger";
 
 dotenv.config();
@@ -67,6 +68,7 @@ app.use("/api/test", protectedRoutes);
 app.use("/api/barbearias", barbeariaRoutes);
 app.use("/api/reservas", reservaRoutes);
 app.use("/api/servicos", servicoRoutes);
+app.use("/api/voice", voiceRoutes);
 
 // logger deve ser aplicado após rotas críticas
 app.use(requestLogger);
