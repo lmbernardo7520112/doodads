@@ -262,5 +262,74 @@ describe("Reserva routes — PRD-004", () => {
     expect(res.status).toBe(400);
     expect(res.body.code).toBe("ALREADY_PAID_CANCEL");
   });
+  // 9️⃣ Ownership e Permissões
+  it("cliente não pode cancelar reserva de outro", async () => {
+    const r = await Reserva.create({
+      usuario: new mongoose.Types.ObjectId(), // another user
+      barbearia: new mongoose.Types.ObjectId(barbeariaId),
+      servico: new mongoose.Types.ObjectId(servicoId),
+      dataHora: new Date(Date.now() + 86400000),
+      status: "pendente",
+    });
+
+    const res = await request(app)
+      .patch(`/api/reservas/${r._id}/cancelar`)
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe("FORBIDDEN_CANCEL");
+  });
+
+  it("cliente não pode pagar reserva de outro", async () => {
+    const r = await Reserva.create({
+      usuario: new mongoose.Types.ObjectId(), // another user
+      barbearia: new mongoose.Types.ObjectId(barbeariaId),
+      servico: new mongoose.Types.ObjectId(servicoId),
+      dataHora: new Date(Date.now() + 86400000),
+      status: "pendente",
+    });
+
+    const res = await request(app)
+      .patch(`/api/reservas/${r._id}/pagar`)
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe("FORBIDDEN_PAY");
+  });
+
+  // 🔟 Status Lifecycle adicionais
+  it("bloqueia cancelamento de reserva já cancelada", async () => {
+    const r = await Reserva.create({
+      usuario: new mongoose.Types.ObjectId(userId),
+      barbearia: new mongoose.Types.ObjectId(barbeariaId),
+      servico: new mongoose.Types.ObjectId(servicoId),
+      dataHora: new Date(Date.now() + 86400000),
+      status: "cancelado",
+    });
+
+    const res = await request(app)
+      .patch(`/api/reservas/${r._id}/cancelar`)
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe("ALREADY_CANCELLED");
+  });
+
+  it("bloqueia pagamento de reserva cancelada", async () => {
+    const r = await Reserva.create({
+      usuario: new mongoose.Types.ObjectId(userId),
+      barbearia: new mongoose.Types.ObjectId(barbeariaId),
+      servico: new mongoose.Types.ObjectId(servicoId),
+      dataHora: new Date(Date.now() + 86400000),
+      status: "cancelado",
+    });
+
+    const res = await request(app)
+      .patch(`/api/reservas/${r._id}/pagar`)
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe("ALREADY_CANCELLED");
+  });
 
 });
