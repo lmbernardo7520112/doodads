@@ -115,7 +115,7 @@ describe("Reserva — PRD-004", () => {
       .send({
         barbearia: barbeariaId,
         servico: servicoId,
-        dataHora: new Date().toISOString(),
+        dataHora: new Date(Date.now() + 86400000).toISOString(),
       });
 
     expect(res.status).toBe(201);
@@ -123,7 +123,7 @@ describe("Reserva — PRD-004", () => {
   });
 
   it("impede reserva com horário já reservado", async () => {
-    const data = new Date().toISOString();
+    const data = new Date(Date.now() + 86400000).toISOString();
 
     await Reserva.create({
       usuario: userId,

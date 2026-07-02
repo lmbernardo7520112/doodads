@@ -87,7 +87,7 @@ describe("Reserva routes — PRD-004", () => {
     const data = {
       barbearia: barbeariaId,
       servico: servicoId,
-      dataHora: new Date().toISOString(),
+      dataHora: new Date(Date.now() + 86400000).toISOString(),
     };
 
     const res = await request(app)
@@ -127,7 +127,7 @@ describe("Reserva routes — PRD-004", () => {
       usuario: new mongoose.Types.ObjectId(userId),
       barbearia: new mongoose.Types.ObjectId(barbeariaId),
       servico: new mongoose.Types.ObjectId(servicoId),
-      dataHora: new Date(),
+      dataHora: new Date(Date.now() + 86400000),
       status: "pendente",
       valor: 40,
     });
@@ -137,7 +137,7 @@ describe("Reserva routes — PRD-004", () => {
       usuario: new mongoose.Types.ObjectId(),
       barbearia: new mongoose.Types.ObjectId(barbeariaId),
       servico: new mongoose.Types.ObjectId(servicoId),
-      dataHora: new Date(),
+      dataHora: new Date(Date.now() + 86400000),
       status: "pendente",
       valor: 40,
     });
@@ -154,6 +154,182 @@ describe("Reserva routes — PRD-004", () => {
   it("bloqueia acesso sem token", async () => {
     const res = await request(app).get("/api/reservas/minhas");
     expect(res.status).toBe(401);
+  });
+
+  // 5️⃣ Data no passado
+  it("rejeita reserva com data no passado", async () => {
+    const passado = new Date();
+    passado.setDate(passado.getDate() - 1);
+
+    const res = await request(app)
+      .post("/api/reservas")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        barbearia: barbeariaId,
+        servico: servicoId,
+        dataHora: passado.toISOString(),
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe("PAST_DATE");
+  });
+
+  // 6️⃣ Barbearia / Serviço inexistentes
+  it("rejeita reserva com barbearia inexistente", async () => {
+    const res = await request(app)
+      .post("/api/reservas")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        barbearia: new mongoose.Types.ObjectId().toString(),
+        servico: servicoId,
+        dataHora: new Date(Date.now() + 86400000).toISOString(),
+      });
+
+    expect(res.status).toBe(404);
+    expect(res.body.code).toBe("BARBEARIA_NOT_FOUND");
+  });
+
+  it("rejeita reserva com servico inexistente ou de outra barbearia", async () => {
+    const res = await request(app)
+      .post("/api/reservas")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        barbearia: barbeariaId,
+        servico: new mongoose.Types.ObjectId().toString(),
+        dataHora: new Date(Date.now() + 86400000).toISOString(),
+      });
+
+    expect(res.status).toBe(404);
+    expect(res.body.code).toBe("SERVICO_NOT_FOUND");
+  });
+
+  // 7️⃣ Conflito ignora cancelado e considera duração
+  it("ignora reserva cancelada e permite criar no mesmo slot", async () => {
+    const dataHora = new Date(Date.now() + 86400000).toISOString();
+    
+    await Reserva.create({
+      usuario: new mongoose.Types.ObjectId(userId),
+      barbearia: new mongoose.Types.ObjectId(barbeariaId),
+      servico: new mongoose.Types.ObjectId(servicoId),
+      dataHora: new Date(dataHora),
+      status: "cancelado", // CANCELADA
+    });
+
+    const res = await request(app)
+      .post("/api/reservas")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        barbearia: barbeariaId,
+        servico: servicoId,
+        dataHora,
+      });
+
+    expect(res.status).toBe(201);
+  });
+
+  // 8️⃣ Cancelamento regras
+  it("bloqueia cancelamento de reserva finalizada", async () => {
+    const r = await Reserva.create({
+      usuario: new mongoose.Types.ObjectId(userId),
+      barbearia: new mongoose.Types.ObjectId(barbeariaId),
+      servico: new mongoose.Types.ObjectId(servicoId),
+      dataHora: new Date(Date.now() + 86400000),
+      status: "finalizado",
+    });
+
+    const res = await request(app)
+      .patch(`/api/reservas/${r._id}/cancelar`)
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe("ALREADY_FINALIZED");
+  });
+
+  it("bloqueia cancelamento de reserva paga", async () => {
+    const r = await Reserva.create({
+      usuario: new mongoose.Types.ObjectId(userId),
+      barbearia: new mongoose.Types.ObjectId(barbeariaId),
+      servico: new mongoose.Types.ObjectId(servicoId),
+      dataHora: new Date(Date.now() + 86400000),
+      status: "confirmado",
+      paymentStatus: "aprovado",
+    });
+
+    const res = await request(app)
+      .patch(`/api/reservas/${r._id}/cancelar`)
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe("ALREADY_PAID_CANCEL");
+  });
+  // 9️⃣ Ownership e Permissões
+  it("cliente não pode cancelar reserva de outro", async () => {
+    const r = await Reserva.create({
+      usuario: new mongoose.Types.ObjectId(), // another user
+      barbearia: new mongoose.Types.ObjectId(barbeariaId),
+      servico: new mongoose.Types.ObjectId(servicoId),
+      dataHora: new Date(Date.now() + 86400000),
+      status: "pendente",
+    });
+
+    const res = await request(app)
+      .patch(`/api/reservas/${r._id}/cancelar`)
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe("FORBIDDEN_CANCEL");
+  });
+
+  it("cliente não pode pagar reserva de outro", async () => {
+    const r = await Reserva.create({
+      usuario: new mongoose.Types.ObjectId(), // another user
+      barbearia: new mongoose.Types.ObjectId(barbeariaId),
+      servico: new mongoose.Types.ObjectId(servicoId),
+      dataHora: new Date(Date.now() + 86400000),
+      status: "pendente",
+    });
+
+    const res = await request(app)
+      .patch(`/api/reservas/${r._id}/pagar`)
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe("FORBIDDEN_PAY");
+  });
+
+  // 🔟 Status Lifecycle adicionais
+  it("bloqueia cancelamento de reserva já cancelada", async () => {
+    const r = await Reserva.create({
+      usuario: new mongoose.Types.ObjectId(userId),
+      barbearia: new mongoose.Types.ObjectId(barbeariaId),
+      servico: new mongoose.Types.ObjectId(servicoId),
+      dataHora: new Date(Date.now() + 86400000),
+      status: "cancelado",
+    });
+
+    const res = await request(app)
+      .patch(`/api/reservas/${r._id}/cancelar`)
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe("ALREADY_CANCELLED");
+  });
+
+  it("bloqueia pagamento de reserva cancelada", async () => {
+    const r = await Reserva.create({
+      usuario: new mongoose.Types.ObjectId(userId),
+      barbearia: new mongoose.Types.ObjectId(barbeariaId),
+      servico: new mongoose.Types.ObjectId(servicoId),
+      dataHora: new Date(Date.now() + 86400000),
+      status: "cancelado",
+    });
+
+    const res = await request(app)
+      .patch(`/api/reservas/${r._id}/pagar`)
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe("ALREADY_CANCELLED");
   });
 
 });

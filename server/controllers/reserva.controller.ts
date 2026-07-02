@@ -1,15 +1,22 @@
 import { Request, Response } from "express";
 import { reservaService } from "../services/reserva.service";
 
+import { AppError } from "../errors/AppError";
+
 const getUserInfo = (req: Request) => {
   const user = (req as any).user || {};
   return { id: user.id, tipo: user.tipo };
 };
 
 const mapError = (res: Response, error: any, defaultMsg: string) => {
+  if (error instanceof AppError) {
+    return res.status(error.statusCode).json({ message: error.message, code: error.code });
+  }
+
+  // legacy mapping just in case some other code throws string errors
   const msg = error.message;
   if (msg === "NOT_FOUND") return res.status(404).json({ message: "Reserva não encontrada." });
-  if (msg === "NOT_FOUND_CANCEL") return res.status(404).json({ message: "Reserva não encontrado." });
+  if (msg === "NOT_FOUND_CANCEL") return res.status(404).json({ message: "Reserva não encontrada." });
   if (msg === "BARBEARIA_NOT_FOUND") return res.status(404).json({ message: "Barbearia não encontrada." });
   if (msg === "FORBIDDEN") return res.status(403).json({ message: "Acesso negado à reserva." });
   if (msg === "FORBIDDEN_CANCEL") return res.status(403).json({ message: "Você não pode cancelar esta reserva." });
