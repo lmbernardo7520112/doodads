@@ -9,10 +9,9 @@ import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import User from "../models/User";
-import dotenv from "dotenv";
+import { env } from "../config/env";
 
-dotenv.config();
-const JWT_SECRET = process.env.JWT_SECRET || "defaultsecret";
+const JWT_SECRET = env.JWT_SECRET;
 const JWT_EXPIRES_IN = "7d";
 
 // =============================================================
@@ -27,7 +26,7 @@ function generateToken(payload: any) {
 // -------------------------------------------------------------
 export const register = async (req: Request, res: Response) => {
   try {
-    const { nomeCompleto, email, senha, tipo, telefone } = req.body;
+    const { nomeCompleto, email, senha, telefone } = req.body;
     if (!email || !senha)
       return res.status(400).json({ message: "Email e senha são obrigatórios." });
 
@@ -40,7 +39,7 @@ export const register = async (req: Request, res: Response) => {
       nomeCompleto,
       email,
       senha: hashed,
-      tipo,
+      tipo: "cliente", // Forçado server-side por segurança
       telefone,
     });
 

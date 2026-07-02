@@ -1,9 +1,10 @@
 //server/config/db.ts
 import mongoose from "mongoose";
+import { env } from "./env";
 
 export const connectToMongo = async (): Promise<void> => {
   try {
-    const uri = process.env.DATABASE_URL || "mongodb://localhost:27017/doodads_db";
+    const uri = env.DATABASE_URL || "mongodb://localhost:27017/doodads_db";
     await mongoose.connect(uri);
     console.log("✅ Connected to central MongoDB instance");
   } catch (error) {

@@ -11,6 +11,8 @@ import cors from "cors";
 import dotenv from "dotenv";
 import bodyParser from "body-parser";
 
+import { env } from "./config/env";
+
 import { connectToMongo } from "./config/db";
 import authRoutes from "./routes/auth.routes";
 import protectedRoutes from "./routes/protected.routes";
@@ -21,11 +23,11 @@ import pagamentoRoutes from "./routes/pagamento.routes";
 import voiceRoutes from "./routes/voice.routes"; // Added this line
 import requestLogger from "./middlewares/requestLogger";
 
-dotenv.config();
+// Configuração já feita no env.ts
 
 const app = express();
-const PORT = process.env.PORT || 3000;
-const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
+const PORT = env.PORT;
+const FRONTEND_URL = env.FRONTEND_URL;
 
 // =============================================================
 // 🌐 CORS
@@ -80,6 +82,23 @@ app.use(requestLogger);
 // =============================================================
 app.get("/api/health", (_req, res) => {
   res.status(200).json({ status: "OK" });
+});
+
+// =============================================================
+// 🛡️ Global Error Handler (Seguro contra vazamentos)
+// =============================================================
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error("❌ Unhandled Error:", err.message || err);
+  
+  if (err.type === "entity.parse.failed") {
+    return res.status(400).json({ error: "Payload malformado." });
+  }
+
+  // Previne vazamento de stack traces e dados sensíveis
+  const statusCode = err.status || 500;
+  res.status(statusCode).json({
+    error: env.NODE_ENV === "production" ? "Erro interno no servidor." : err.message || "Erro interno.",
+  });
 });
 
 // =============================================================

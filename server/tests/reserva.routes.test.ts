@@ -16,7 +16,8 @@ import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 dotenv.config();
 
-const JWT_SECRET = process.env.JWT_SECRET || "defaultsecret";
+import { env } from "../config/env";
+const JWT_SECRET = env.JWT_SECRET;
 
 let token: string;
 let userId: string;

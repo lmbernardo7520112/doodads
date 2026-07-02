@@ -1,5 +1,5 @@
-import { connectToMongo } from "./config/db.ts";
-import User from "./models/User.ts";
+import { connectToMongo } from "./config/db";
+import User from "./models/User";
 
 (async () => {
   await connectToMongo();

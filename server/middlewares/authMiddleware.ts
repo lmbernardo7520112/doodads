@@ -13,10 +13,9 @@
 
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import dotenv from "dotenv";
+import { env } from "../config/env";
 
-dotenv.config();
-const JWT_SECRET = process.env.JWT_SECRET || "defaultsecret";
+const JWT_SECRET = env.JWT_SECRET;
 
 // Tipagem estendida para Request usada pelo resto do projeto
 export interface AuthenticatedRequest extends Request {

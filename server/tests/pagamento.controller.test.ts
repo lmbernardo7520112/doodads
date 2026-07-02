@@ -6,13 +6,14 @@ import request from "supertest";
 import app from "../App";
 import Reserva from "../models/Reserva";
 import jwt from "jsonwebtoken";
+import { env } from "../config/env";
 
 // =====================================================================
 // TOKEN VÁLIDO (passa pelo middleware sem erro)
 // =====================================================================
 const tokenValido = `Bearer ${jwt.sign(
   { id: "user01", tipo: "cliente" },
-  process.env.JWT_SECRET || "defaultsecret"
+  env.JWT_SECRET
 )}`;
 
 // =====================================================================
