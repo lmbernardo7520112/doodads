@@ -1,6 +1,40 @@
 import { reservaRepository } from "../repositories/reserva.repository";
 import { reservaPolicy } from "../policies/reserva.policy";
 import { AppError } from "../errors/AppError";
+import { termsAcceptanceService, CreateTermsAcceptanceInput } from "./termsAcceptance.service";
+import { termsVersionRepository } from "../repositories/termsVersion.repository";
+import { bookingPolicyService } from "./bookingPolicy.service";
+import { ITermsAcceptance } from "../models/TermsAcceptance";
+import { IReserva } from "../models/Reserva";
+
+/**
+ * Input de aceite de termos vindo do request do cliente.
+ * Campos mínimos — o backend monta o snapshot server-owned.
+ */
+export interface AcceptedTermsInput {
+  termsVersionId: string;
+  acceptedTermsCheckbox: boolean;
+  source: "web" | "mobile" | "admin";
+  locale?: string;
+}
+
+/**
+ * Mapa legível de refundPolicy para resumo de snapshot.
+ */
+const REFUND_POLICY_SUMMARIES: Record<string, string> = {
+  full_refund_until_window: "Reembolso integral dentro da janela de cancelamento.",
+  partial_refund_until_window: "Reembolso parcial dentro da janela de cancelamento.",
+  no_refund_after_window: "Sem reembolso após a janela de cancelamento.",
+  manual_review: "Reembolso sujeito a análise manual.",
+};
+
+/**
+ * Mapa legível de noShowPolicy para resumo de snapshot.
+ */
+const NO_SHOW_POLICY_SUMMARIES: Record<string, string> = {
+  mark_no_show_after_tolerance: "Marcado como não comparecimento após tolerância.",
+  manual_review: "Não comparecimento encaminhado para análise manual.",
+};
 
 export class ReservaService {
   async getReservaById(id: string, usuarioId: string) {
@@ -46,6 +80,99 @@ export class ReservaService {
       status: "pendente",
       paymentStatus: "pendente"
     });
+  }
+
+  /**
+   * Cria reserva COM aceite de termos — retrocompatível.
+   * Valida TermsVersion, monta snapshot server-owned e registra TermsAcceptance.
+   * O fluxo antigo (criarReserva) continua disponível quando acceptedTerms é omitido.
+   */
+  async criarReservaComAceite(
+    usuarioId: string,
+    barbearia: string,
+    servico: string,
+    dataHora: string,
+    valor: number | undefined,
+    acceptedTerms: AcceptedTermsInput,
+    clientIp?: string,
+    userAgent?: string
+  ): Promise<{ reserva: IReserva; termsAcceptance: ITermsAcceptance }> {
+    // 1. Validar checkbox explícito
+    if (acceptedTerms.acceptedTermsCheckbox !== true) {
+      throw new AppError(
+        "O aceite dos termos deve ser explicitamente confirmado.",
+        400,
+        "TERMS_CHECKBOX_NOT_ACCEPTED"
+      );
+    }
+
+    // 2. Validar TermsVersion
+    const termsVersion = await termsVersionRepository.findById(acceptedTerms.termsVersionId);
+    if (!termsVersion) {
+      throw new AppError(
+        "Versão de termos não encontrada.",
+        404,
+        "TERMS_VERSION_NOT_FOUND"
+      );
+    }
+
+    if (!termsVersion.isActive) {
+      throw new AppError(
+        "A versão de termos informada não está mais ativa.",
+        409,
+        "TERMS_VERSION_INACTIVE"
+      );
+    }
+
+    if (termsVersion.type !== "booking_payment_terms") {
+      throw new AppError(
+        "A versão de termos não é do tipo correto para reservas.",
+        400,
+        "TERMS_VERSION_TYPE_MISMATCH"
+      );
+    }
+
+    // 3. Criar reserva usando fluxo existente
+    const reserva = await this.criarReserva(usuarioId, barbearia, servico, dataHora, valor);
+
+    // 4. Resolver dados server-owned para snapshot
+    const servicoObj = await reservaRepository.checkServicoExists(servico, barbearia);
+    const policy = await bookingPolicyService.getActiveOrDefaultPolicy(barbearia);
+
+    const priceCents = Math.round((servicoObj?.preco || 0) * 100);
+    const checkboxLabelSnapshot = `Li e aceito os ${termsVersion.title} (versão ${termsVersion.version}).`;
+    const acceptanceTextSnapshot = termsVersion.content;
+
+    // 5. Montar input do TermsAcceptance com campos server-owned
+    const taInput: CreateTermsAcceptanceInput = {
+      reservaId: reserva._id.toString(),
+      barbeariaId: barbearia,
+      userId: usuarioId,
+      termsVersionId: termsVersion._id.toString(),
+      acceptedAt: new Date(),
+      checkboxLabelSnapshot,
+      acceptanceTextSnapshot,
+      serviceSnapshot: {
+        servicoNome: servicoObj?.nome || "Serviço",
+        priceCents,
+        scheduledAt: new Date(dataHora),
+        durationMinutes: servicoObj?.duracaoMin,
+        arrivalToleranceMinutes: policy.arrivalToleranceMinutes,
+        paymentExpirationMinutes: policy.paymentExpirationMinutes,
+        cancellationWindowHours: policy.cancellationWindowHours,
+        refundPolicySummary: REFUND_POLICY_SUMMARIES[policy.refundPolicy] || "Consulte as políticas da barbearia.",
+        noShowPolicySummary: NO_SHOW_POLICY_SUMMARIES[policy.noShowPolicy] || "Consulte as políticas da barbearia.",
+      },
+      clientIp,
+      userAgent,
+      source: acceptedTerms.source,
+      locale: acceptedTerms.locale || "pt-BR",
+    };
+
+    // 6. Criar TermsAcceptance snapshot
+    const termsAcceptance = await termsAcceptanceService.createTermsAcceptanceSnapshot(taInput);
+
+    return { reserva, termsAcceptance };
   }
 
   async cancelarReserva(id: string, usuarioId: string, usuarioTipo: string, reason?: string) {
@@ -111,3 +238,4 @@ export class ReservaService {
   }
 }
 export const reservaService = new ReservaService();
+

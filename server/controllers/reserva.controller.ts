@@ -63,8 +63,28 @@ export const criarReserva = async (req: Request, res: Response) => {
     const { id: usuarioId } = getUserInfo(req);
     if (!usuarioId) return res.status(401).json({ message: "Não autorizado." });
     
-    const { barbearia, servico, dataHora, valor } = req.body;
+    const { barbearia, servico, dataHora, valor, acceptedTerms } = req.body;
     if (!barbearia || !servico || !dataHora) return res.status(400).json({ message: "Dados incompletos para criar reserva." });
+
+    // Retrocompatível: se acceptedTerms for enviado, delega para criarReservaComAceite
+    if (acceptedTerms) {
+      const clientIp = req.ip;
+      const userAgent = req.headers["user-agent"];
+      const result = await reservaService.criarReservaComAceite(
+        usuarioId, barbearia, servico, dataHora, valor,
+        acceptedTerms, clientIp, userAgent
+      );
+      return res.status(201).json({
+        message: "Reserva criada com sucesso!",
+        reserva: result.reserva,
+        termsAcceptance: {
+          id: result.termsAcceptance._id,
+          termsVersionId: result.termsAcceptance.termsVersionId,
+          acceptedAt: result.termsAcceptance.acceptedAt,
+          checkboxLabelSnapshot: result.termsAcceptance.checkboxLabelSnapshot,
+        },
+      });
+    }
 
     const reserva = await reservaService.criarReserva(usuarioId, barbearia, servico, dataHora, valor);
     return res.status(201).json({ message: "Reserva criada com sucesso!", reserva });
