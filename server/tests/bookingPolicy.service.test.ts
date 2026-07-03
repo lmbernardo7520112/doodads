@@ -31,8 +31,8 @@ describe("BookingPolicyService", () => {
     expect(policy.paymentExpirationMinutes).toBe(15);
     expect(policy.arrivalToleranceMinutes).toBe(15);
     expect(policy.cancellationWindowHours).toBe(2);
-    expect(policy.refundPolicy).toBe("no_refund_after_window");
-    expect(policy.noShowPolicy).toBe("mark_no_show_after_tolerance");
+    expect(policy.refundPolicy).toBe("manual_review");
+    expect(policy.noShowPolicy).toBe("manual_review");
     expect(policy.policyVersion).toBe("1.0");
     expect(policy.isActive).toBe(true);
     expect(policy.activeFrom).toBeDefined();
