@@ -1,6 +1,10 @@
 import TermsVersion, { ITermsVersion } from "../models/TermsVersion";
 
 export class TermsVersionRepository {
+  async findById(id: string): Promise<ITermsVersion | null> {
+    return TermsVersion.findById(id);
+  }
+
   async findActiveByType(type: string): Promise<ITermsVersion | null> {
     return TermsVersion.findOne({ type, isActive: true }).sort({ createdAt: -1 });
   }
