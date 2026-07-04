@@ -74,7 +74,8 @@ export const criarReserva = async (req: Request, res: Response) => {
         usuarioId, barbearia, servico, dataHora, valor,
         acceptedTerms, clientIp, userAgent
       );
-      return res.status(201).json({
+      
+      const responseData: any = {
         message: "Reserva criada com sucesso!",
         reserva: result.reserva,
         termsAcceptance: {
@@ -83,7 +84,19 @@ export const criarReserva = async (req: Request, res: Response) => {
           acceptedAt: result.termsAcceptance.acceptedAt,
           checkboxLabelSnapshot: result.termsAcceptance.checkboxLabelSnapshot,
         },
-      });
+      };
+
+      if (result.bookingPayment) {
+        responseData.bookingPayment = result.bookingPayment;
+        responseData.paymentInstruction = {
+          message: "Realize o pagamento via Pix diretamente à barbearia.",
+          expiresInMinutes: result.bookingPayment.expiresAt
+            ? Math.round((result.bookingPayment.expiresAt.getTime() - Date.now()) / 60000)
+            : 15,
+        };
+      }
+
+      return res.status(201).json(responseData);
     }
 
     const reserva = await reservaService.criarReserva(usuarioId, barbearia, servico, dataHora, valor);

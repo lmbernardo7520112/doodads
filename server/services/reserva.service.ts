@@ -6,6 +6,8 @@ import { termsVersionRepository } from "../repositories/termsVersion.repository"
 import { bookingPolicyService } from "./bookingPolicy.service";
 import { ITermsAcceptance } from "../models/TermsAcceptance";
 import { IReserva } from "../models/Reserva";
+import { bookingPaymentManualService } from "./bookingPaymentManual.service";
+import { IBookingPayment } from "../models/BookingPayment";
 
 /**
  * Input de aceite de termos vindo do request do cliente.
@@ -96,7 +98,7 @@ export class ReservaService {
     acceptedTerms: AcceptedTermsInput,
     clientIp?: string,
     userAgent?: string
-  ): Promise<{ reserva: IReserva; termsAcceptance: ITermsAcceptance }> {
+  ): Promise<{ reserva: IReserva; termsAcceptance: ITermsAcceptance; bookingPayment?: IBookingPayment }> {
     // 1. Validar checkbox explícito
     if (acceptedTerms.acceptedTermsCheckbox !== true) {
       throw new AppError(
@@ -172,7 +174,31 @@ export class ReservaService {
     // 6. Criar TermsAcceptance snapshot
     const termsAcceptance = await termsAcceptanceService.createTermsAcceptanceSnapshot(taInput);
 
-    return { reserva, termsAcceptance };
+    let bookingPayment: IBookingPayment | undefined;
+
+    // 7. Se a BookingPolicy exigir pré-pagamento, cria o BookingPayment manual pending
+    if (policy.requirePrepayment) {
+      const paymentExpirationMinutes = policy.paymentExpirationMinutes || 15;
+      const expiresAt = new Date(Date.now() + paymentExpirationMinutes * 60000);
+
+      bookingPayment = await bookingPaymentManualService.createManualBookingPayment({
+        reservaId: reserva._id.toString(),
+        barbeariaId: barbearia,
+        amountCents: priceCents,
+        expiresAt,
+        idempotencyKey: `manual-payment-${reserva._id.toString()}`,
+      });
+
+      // Atualiza a reserva com informações de pagamento
+      reserva.paymentRequired = true;
+      reserva.paymentStatus = "pending";
+      reserva.bookingPaymentId = bookingPayment._id as any;
+      reserva.paymentExpiresAt = expiresAt;
+
+      await reservaRepository.save(reserva);
+    }
+
+    return { reserva, termsAcceptance, bookingPayment };
   }
 
   async cancelarReserva(id: string, usuarioId: string, usuarioTipo: string, reason?: string) {
