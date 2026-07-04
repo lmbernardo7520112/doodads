@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { reservaService } from "../services/reserva.service";
-
 import { AppError } from "../errors/AppError";
+import { presentPaymentStatus, presentReservaStatus } from "../presenters/statusPresenter";
 
 const getUserInfo = (req: Request) => {
   const user = (req as any).user || {};
@@ -84,6 +84,8 @@ export const criarReserva = async (req: Request, res: Response) => {
           acceptedAt: result.termsAcceptance.acceptedAt,
           checkboxLabelSnapshot: result.termsAcceptance.checkboxLabelSnapshot,
         },
+        paymentStatusPresentation: presentPaymentStatus(result.reserva.paymentStatus || "pendente"),
+        reservaStatusPresentation: presentReservaStatus(result.reserva.status || "pendente"),
       };
 
       if (result.bookingPayment) {
