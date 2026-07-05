@@ -13,10 +13,12 @@ import {
   pagarReservaSimulado,
   getReservaById,
 } from "../controllers/reserva.controller";
+import { confirmarPagamentoManual } from "../controllers/bookingPaymentManual.controller";
 import generateSlots from "../utils/generateSlots";
 import rateLimit from "express-rate-limit";
 import { validateRequest } from "../middlewares/validateRequest";
 import { criarReservaSchema } from "../schemas/reserva.schema";
+import { confirmManualPaymentSchema } from "../schemas/confirmManualPayment.schema";
 
 // =============================================================
 // 🛡️ Rate Limiter de Reservas (Fase 1)
@@ -39,6 +41,14 @@ router.get("/minhas", authMiddleware, listarMinhasReservas);
 router.get("/:id", authMiddleware, getReservaById);
 
 router.patch("/:id/cancelar", authMiddleware, cancelarReserva);
+
+// 🔒 Confirmação manual de pagamento (barbeiro/admin only)
+router.patch(
+  "/pagamento-manual/:bookingPaymentId/confirmar",
+  authMiddleware,
+  validateRequest(confirmManualPaymentSchema),
+  confirmarPagamentoManual
+);
 
 // ⚠️ Pagamento simulado (dev)
 router.patch("/:id/pagar", authMiddleware, pagarReservaSimulado);
