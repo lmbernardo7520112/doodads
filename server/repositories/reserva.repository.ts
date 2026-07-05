@@ -4,7 +4,11 @@ import Servico, { IServico } from "../models/Servico";
 
 export class ReservaRepository {
   async findById(id: string): Promise<IReserva | null> {
-    return Reserva.findById(id).populate("barbearia", "nome imagem telefone1").populate("servico", "nome preco duracaoMin");
+    return Reserva.findById(id).populate("barbearia", "nome imagem telefone1 barbeiro").populate("servico", "nome preco duracaoMin");
+  }
+
+  async findByIdRaw(id: string): Promise<IReserva | null> {
+    return Reserva.findById(id);
   }
 
   async findMinhas(usuarioId: string): Promise<IReserva[]> {

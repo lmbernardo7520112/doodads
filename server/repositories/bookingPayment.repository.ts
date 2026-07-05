@@ -17,6 +17,13 @@ export class BookingPaymentRepository {
     return BookingPayment.find({ reservaId }).sort({ createdAt: -1 });
   }
 
+  async findByReservaIdAndStatus(
+    reservaId: string,
+    status: IBookingPayment["status"]
+  ): Promise<IBookingPayment | null> {
+    return BookingPayment.findOne({ reservaId, status });
+  }
+
   async updateStatus(
     id: string,
     status: IBookingPayment["status"],
