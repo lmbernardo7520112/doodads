@@ -27,6 +27,15 @@ export interface ConfirmManualBookingPaymentResult {
   reserva: IReserva;
 }
 
+export interface ExpireOverdueManualBookingPaymentInput {
+  bookingPaymentId: string;
+}
+
+export interface ExpireOverdueManualBookingPaymentResult {
+  bookingPayment: IBookingPayment;
+  reserva: IReserva;
+}
+
 /**
  * Sanitiza o objeto metadataSafe removendo qualquer chave sensível ou suspeita.
  * Chaves que contenham palavras como: key, secret, token, password, pix, cpf, cnpj,
@@ -289,6 +298,139 @@ export class BookingPaymentManualService {
     // Nota: status principal da Reserva mantido como "pendente" para retrocompatibilidade.
     // A transição para "confirmado" será implementada em fase futura quando
     // o fluxo completo estiver validado end-to-end.
+
+    const updatedReserva = await reservaRepository.save(reserva);
+
+    return {
+      bookingPayment: updatedPayment,
+      reserva: updatedReserva,
+    };
+  }
+
+  /**
+   * Expiração controlada de BookingPayment manual pending vencido — backend-only.
+   *
+   * Regra de domínio pura (sem cron/job/scheduler/rota):
+   * 1. bookingPaymentId válido
+   * 2. BookingPayment.provider = manual
+   * 3. BookingPayment.status = pending
+   * 4. BookingPayment.expiresAt no passado
+   * 5. Reserva associada existente com paymentRequired = true e bookingPaymentId correspondente
+   *
+   * Ao expirar:
+   * - BookingPayment.status → expired
+   * - Reserva.paymentStatus → expired
+   * - Reserva.status principal preservado (sem alteração indevida)
+   * - Metadata com audit trail mínimo e seguro
+   */
+  async expireOverdueManualBookingPayment(
+    input: ExpireOverdueManualBookingPaymentInput
+  ): Promise<ExpireOverdueManualBookingPaymentResult> {
+    const { bookingPaymentId } = input;
+
+    // 1. Validação de ObjectId
+    if (!bookingPaymentId || !mongoose.Types.ObjectId.isValid(bookingPaymentId)) {
+      throw new AppError("ID do pagamento inválido.", 400, "INVALID_BOOKING_PAYMENT_ID");
+    }
+
+    // 2. Buscar BookingPayment
+    const bookingPayment = await bookingPaymentRepository.findById(bookingPaymentId);
+    if (!bookingPayment) {
+      throw new AppError("Pagamento não encontrado.", 404, "BOOKING_PAYMENT_NOT_FOUND");
+    }
+
+    // 3. Provider deve ser manual
+    if (bookingPayment.provider !== "manual") {
+      throw new AppError(
+        "Apenas pagamentos manuais podem ser expirados por esta operação.",
+        400,
+        "PROVIDER_NOT_MANUAL"
+      );
+    }
+
+    // 4. Status deve ser pending
+    if (bookingPayment.status !== "pending") {
+      const codeMap: Record<string, string> = {
+        paid: "CANNOT_EXPIRE_PAID",
+        expired: "ALREADY_EXPIRED",
+        cancelled: "CANNOT_EXPIRE_CANCELLED",
+        refunded: "CANNOT_EXPIRE_REFUNDED",
+        failed: "CANNOT_EXPIRE_FAILED",
+        manual_review: "CANNOT_EXPIRE_MANUAL_REVIEW",
+      };
+      throw new AppError(
+        `Pagamento não pode ser expirado: status atual é "${bookingPayment.status}".`,
+        409,
+        codeMap[bookingPayment.status] || "INVALID_PAYMENT_STATUS"
+      );
+    }
+
+    // 5. expiresAt deve estar no passado
+    if (!bookingPayment.expiresAt) {
+      throw new AppError(
+        "Pagamento sem data de expiração definida.",
+        400,
+        "NO_EXPIRES_AT"
+      );
+    }
+
+    if (bookingPayment.expiresAt.getTime() >= Date.now()) {
+      throw new AppError(
+        "Pagamento ainda não venceu. A expiração só pode ocorrer após expiresAt.",
+        409,
+        "NOT_YET_EXPIRED"
+      );
+    }
+
+    // 6. Buscar Reserva associada
+    const reserva = await reservaRepository.findByIdRaw(bookingPayment.reservaId.toString());
+    if (!reserva) {
+      throw new AppError(
+        "Reserva associada ao pagamento não encontrada.",
+        404,
+        "RESERVA_NOT_FOUND"
+      );
+    }
+
+    // 7. Validar consistência Reserva ↔ BookingPayment
+    if (!reserva.paymentRequired) {
+      throw new AppError(
+        "A reserva associada não requer pagamento.",
+        409,
+        "RESERVA_PAYMENT_NOT_REQUIRED"
+      );
+    }
+
+    if (!reserva.bookingPaymentId || reserva.bookingPaymentId.toString() !== bookingPaymentId) {
+      throw new AppError(
+        "O pagamento informado não corresponde à reserva.",
+        409,
+        "BOOKING_PAYMENT_MISMATCH"
+      );
+    }
+
+    // 8. Expirar: atualizar BookingPayment
+    const now = new Date();
+    const updatedPayment = await bookingPaymentRepository.updateStatus(
+      bookingPaymentId,
+      "expired",
+      {
+        metadataSafe: {
+          ...bookingPayment.metadataSafe as Record<string, unknown>,
+          expiredAt: now.toISOString(),
+          expirationReason: "overdue_manual_payment",
+        },
+      }
+    );
+
+    if (!updatedPayment) {
+      throw new AppError("Falha ao atualizar o pagamento.", 500, "PAYMENT_UPDATE_FAILED");
+    }
+
+    // 9. Atualizar Reserva
+    reserva.paymentStatus = "expired";
+    // Nota: status principal da Reserva preservado (sem alteração indevida).
+    // A decisão sobre cancelamento automático da reserva será em fase futura.
 
     const updatedReserva = await reservaRepository.save(reserva);
 
