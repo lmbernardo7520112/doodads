@@ -26,7 +26,7 @@ export default function HomePage() {
   const [sel, setSel] = useState<number | null>(0);
 
   const { data: barbearias = [], loading: loadingBarb } = useBarbearias(selectedQuery || query);
-  const { data: reservas = [], loading: loadingRes } = useReservas();
+  const { data: reservas = [], loading: loadingRes, mutate: mutateReservas } = useReservas();
 
   const loading = loadingBarb || loadingRes;
 
@@ -119,7 +119,11 @@ export default function HomePage() {
             </p>
           ) : (
             reservas.slice(0, 3).map((r: any) => (
-              <AppointmentCard key={r._id} reserva={r} />
+              <AppointmentCard
+                key={r._id}
+                reserva={r}
+                onUpdate={() => mutateReservas()}
+              />
             ))
           )}
         </div>

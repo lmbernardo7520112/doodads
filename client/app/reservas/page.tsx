@@ -7,7 +7,7 @@ import AppointmentCard from "@/components/ui/AppointmentCard";
 import { IReserva } from "@/types/Reserva";
 
 export default function ReservasPage() {
-  const { data: reservas, loading } = useReservas();
+  const { data: reservas, loading, mutate } = useReservas();
 
   if (loading)
     return (
@@ -25,7 +25,11 @@ export default function ReservasPage() {
       ) : (
         <div className="grid gap-4">
           {reservas.map((r: IReserva) => (
-            <AppointmentCard key={r._id} reserva={r} />
+            <AppointmentCard
+              key={r._id}
+              reserva={r}
+              onUpdate={() => mutate()}
+            />
           ))}
         </div>
       )}

@@ -26,10 +26,18 @@ export interface IReserva {
   // 🟡 Status padronizado
   status: "pendente" | "confirmado" | "cancelado" | "finalizado";
 
-  // 💰 Campos opcionais
+  // 💰 Campos opcionais (legado)
   valor?: number;
   criadoEm: string;
   canceladoEm?: string;
+  cancelReason?: string;
+
+  // 🔹 Payment fields (manual_pix D1)
+  paymentRequired?: boolean;
+  paymentStatus?: "pendente" | "aprovado" | "falhou" | "not_required" | "pending" | "paid" | "expired" | "refunded" | "failed" | "manual_review";
+  paymentExpiresAt?: string;
+  bookingPaymentId?: string;
+  confirmedAt?: string;
 }
 
 // -------------------------------------------------------------

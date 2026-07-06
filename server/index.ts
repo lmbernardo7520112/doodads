@@ -21,6 +21,7 @@ import reservaRoutes from "./routes/reserva.routes";
 import servicoRoutes from "./routes/servico.routes";
 import pagamentoRoutes from "./routes/pagamento.routes";
 import voiceRoutes from "./routes/voice.routes"; // Added this line
+import termsRoutes from "./routes/terms.routes";
 import requestLogger from "./middlewares/requestLogger";
 
 // Configuração já feita no env.ts
@@ -71,6 +72,7 @@ app.use("/api/barbearias", barbeariaRoutes);
 app.use("/api/reservas", reservaRoutes);
 app.use("/api/servicos", servicoRoutes);
 app.use("/api/voice", voiceRoutes);
+app.use("/api/terms", termsRoutes);
 
 // logger deve ser aplicado após rotas críticas
 app.use(requestLogger);
