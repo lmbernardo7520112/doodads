@@ -131,6 +131,8 @@ describe("Expiração Controlada de BookingPayment Manual (Phase D6)", () => {
 
     const result = await bookingPaymentManualService.expireOverdueManualBookingPayment({
       bookingPaymentId: bookingPayment._id.toString(),
+      userId: barbeiroUserId,
+      userTipo: "barbeiro",
     });
 
     expect(result.bookingPayment.status).toBe("expired");
@@ -146,6 +148,8 @@ describe("Expiração Controlada de BookingPayment Manual (Phase D6)", () => {
 
     const result = await bookingPaymentManualService.expireOverdueManualBookingPayment({
       bookingPaymentId: bookingPayment._id.toString(),
+      userId: barbeiroUserId,
+      userTipo: "barbeiro",
     });
 
     expect(result.reserva.paymentStatus).toBe("expired");
@@ -164,6 +168,8 @@ describe("Expiração Controlada de BookingPayment Manual (Phase D6)", () => {
 
     const result = await bookingPaymentManualService.expireOverdueManualBookingPayment({
       bookingPaymentId: bookingPayment._id.toString(),
+      userId: barbeiroUserId,
+      userTipo: "barbeiro",
     });
 
     expect(result.reserva.status).toBe("pendente");
@@ -181,12 +187,16 @@ describe("Expiração Controlada de BookingPayment Manual (Phase D6)", () => {
     await expect(
       bookingPaymentManualService.expireOverdueManualBookingPayment({
         bookingPaymentId: bookingPayment._id.toString(),
+      userId: barbeiroUserId,
+      userTipo: "barbeiro",
       })
     ).rejects.toThrow(AppError);
 
     try {
       await bookingPaymentManualService.expireOverdueManualBookingPayment({
         bookingPaymentId: bookingPayment._id.toString(),
+      userId: barbeiroUserId,
+      userTipo: "barbeiro",
       });
     } catch (error) {
       expect((error as AppError).code).toBe("NOT_YET_EXPIRED");
@@ -204,6 +214,8 @@ describe("Expiração Controlada de BookingPayment Manual (Phase D6)", () => {
     try {
       await bookingPaymentManualService.expireOverdueManualBookingPayment({
         bookingPaymentId: bookingPayment._id.toString(),
+      userId: barbeiroUserId,
+      userTipo: "barbeiro",
       });
       fail("Deveria ter lançado erro");
     } catch (error) {
@@ -222,6 +234,8 @@ describe("Expiração Controlada de BookingPayment Manual (Phase D6)", () => {
     try {
       await bookingPaymentManualService.expireOverdueManualBookingPayment({
         bookingPaymentId: bookingPayment._id.toString(),
+      userId: barbeiroUserId,
+      userTipo: "barbeiro",
       });
       fail("Deveria ter lançado erro");
     } catch (error) {
@@ -239,6 +253,8 @@ describe("Expiração Controlada de BookingPayment Manual (Phase D6)", () => {
     try {
       await bookingPaymentManualService.expireOverdueManualBookingPayment({
         bookingPaymentId: bookingPayment._id.toString(),
+      userId: barbeiroUserId,
+      userTipo: "barbeiro",
       });
       fail("Deveria ter lançado erro");
     } catch (error) {
@@ -256,6 +272,8 @@ describe("Expiração Controlada de BookingPayment Manual (Phase D6)", () => {
     try {
       await bookingPaymentManualService.expireOverdueManualBookingPayment({
         bookingPaymentId: bookingPayment._id.toString(),
+      userId: barbeiroUserId,
+      userTipo: "barbeiro",
       });
       fail("Deveria ter lançado erro");
     } catch (error) {
@@ -273,6 +291,8 @@ describe("Expiração Controlada de BookingPayment Manual (Phase D6)", () => {
     try {
       await bookingPaymentManualService.expireOverdueManualBookingPayment({
         bookingPaymentId: bookingPayment._id.toString(),
+      userId: barbeiroUserId,
+      userTipo: "barbeiro",
       });
       fail("Deveria ter lançado erro");
     } catch (error) {
@@ -290,6 +310,8 @@ describe("Expiração Controlada de BookingPayment Manual (Phase D6)", () => {
     try {
       await bookingPaymentManualService.expireOverdueManualBookingPayment({
         bookingPaymentId: bookingPayment._id.toString(),
+      userId: barbeiroUserId,
+      userTipo: "barbeiro",
       });
       fail("Deveria ter lançado erro");
     } catch (error) {
@@ -307,6 +329,8 @@ describe("Expiração Controlada de BookingPayment Manual (Phase D6)", () => {
     try {
       await bookingPaymentManualService.expireOverdueManualBookingPayment({
         bookingPaymentId: bookingPayment._id.toString(),
+      userId: barbeiroUserId,
+      userTipo: "barbeiro",
       });
       fail("Deveria ter lançado erro");
     } catch (error) {
@@ -327,6 +351,8 @@ describe("Expiração Controlada de BookingPayment Manual (Phase D6)", () => {
     try {
       await bookingPaymentManualService.expireOverdueManualBookingPayment({
         bookingPaymentId: bookingPayment._id.toString(),
+      userId: barbeiroUserId,
+      userTipo: "barbeiro",
       });
       fail("Deveria ter lançado erro");
     } catch (error) {
@@ -346,6 +372,8 @@ describe("Expiração Controlada de BookingPayment Manual (Phase D6)", () => {
     try {
       await bookingPaymentManualService.expireOverdueManualBookingPayment({
         bookingPaymentId: bookingPayment._id.toString(),
+      userId: barbeiroUserId,
+      userTipo: "barbeiro",
       });
       fail("Deveria ter lançado erro");
     } catch (error) {
@@ -363,6 +391,8 @@ describe("Expiração Controlada de BookingPayment Manual (Phase D6)", () => {
     try {
       await bookingPaymentManualService.expireOverdueManualBookingPayment({
         bookingPaymentId: bookingPayment._id.toString(),
+      userId: barbeiroUserId,
+      userTipo: "barbeiro",
       });
       fail("Deveria ter lançado erro");
     } catch (error) {
@@ -380,6 +410,8 @@ describe("Expiração Controlada de BookingPayment Manual (Phase D6)", () => {
 
     const result = await bookingPaymentManualService.expireOverdueManualBookingPayment({
       bookingPaymentId: bookingPayment._id.toString(),
+      userId: barbeiroUserId,
+      userTipo: "barbeiro",
     });
 
     const metadata = result.bookingPayment.metadataSafe as Record<string, unknown>;
@@ -397,6 +429,8 @@ describe("Expiração Controlada de BookingPayment Manual (Phase D6)", () => {
 
     const result = await bookingPaymentManualService.expireOverdueManualBookingPayment({
       bookingPaymentId: bookingPayment._id.toString(),
+      userId: barbeiroUserId,
+      userTipo: "barbeiro",
     });
 
     expect(result.bookingPayment.expiresAt!.getTime()).toBe(expiresAt.getTime());
@@ -410,6 +444,8 @@ describe("Expiração Controlada de BookingPayment Manual (Phase D6)", () => {
     try {
       await bookingPaymentManualService.expireOverdueManualBookingPayment({
         bookingPaymentId: "invalido",
+        userId: barbeiroUserId,
+        userTipo: "barbeiro",
       });
       fail("Deveria ter lançado erro");
     } catch (error) {
@@ -428,6 +464,8 @@ describe("Expiração Controlada de BookingPayment Manual (Phase D6)", () => {
     try {
       await bookingPaymentManualService.expireOverdueManualBookingPayment({
         bookingPaymentId: fakeId,
+        userId: barbeiroUserId,
+        userTipo: "barbeiro",
       });
       fail("Deveria ter lançado erro");
     } catch (error) {
@@ -457,6 +495,8 @@ describe("Expiração Controlada de BookingPayment Manual (Phase D6)", () => {
 
     const result = await bookingPaymentManualService.expireOverdueManualBookingPayment({
       bookingPaymentId: bookingPayment._id.toString(),
+      userId: barbeiroUserId,
+      userTipo: "barbeiro",
     });
 
     const body = JSON.stringify(result);
@@ -479,6 +519,8 @@ describe("Expiração Controlada de BookingPayment Manual (Phase D6)", () => {
 
     await bookingPaymentManualService.expireOverdueManualBookingPayment({
       bookingPaymentId: bookingPayment._id.toString(),
+      userId: barbeiroUserId,
+      userTipo: "barbeiro",
     });
 
     const bpDb = await BookingPayment.findById(bookingPayment._id);

@@ -70,3 +70,56 @@ export const confirmarPagamentoManual = async (req: Request, res: Response) => {
     return res.status(500).json({ message: "Erro interno ao confirmar pagamento." });
   }
 };
+
+/**
+ * PATCH /api/reservas/pagamento-manual/:bookingPaymentId/expirar
+ *
+ * Expira manualmente/administrativamente um pagamento manual pending vencido.
+ * Apenas barbeiro proprietário da barbearia ou admin.
+ * Delega validação completa ao service.
+ */
+export const expirarPagamentoManual = async (req: Request, res: Response) => {
+  try {
+    const { id: userId, tipo: userTipo } = getUserInfo(req);
+
+    if (!userId || !userTipo) {
+      return res.status(401).json({ message: "Não autorizado." });
+    }
+
+    const { bookingPaymentId } = req.params;
+
+    const result = await bookingPaymentManualService.expireOverdueManualBookingPayment({
+      bookingPaymentId,
+      userId,
+      userTipo: userTipo as "admin" | "barbeiro" | "cliente",
+    });
+
+    return res.status(200).json({
+      message: "Pagamento expirado com sucesso.",
+      bookingPayment: {
+        id: result.bookingPayment._id,
+        status: result.bookingPayment.status,
+        expiresAt: result.bookingPayment.expiresAt,
+        amountCents: result.bookingPayment.amountCents,
+        currency: result.bookingPayment.currency,
+        provider: result.bookingPayment.provider,
+      },
+      reserva: {
+        id: result.reserva._id,
+        status: result.reserva.status,
+        paymentStatus: result.reserva.paymentStatus,
+      },
+      paymentStatusPresentation: presentPaymentStatus(result.bookingPayment.status),
+      reservaStatusPresentation: presentReservaStatus(result.reserva.status),
+    });
+  } catch (error) {
+    if (error instanceof AppError) {
+      return res.status(error.statusCode).json({
+        message: error.message,
+        code: error.code,
+      });
+    }
+    console.error("Erro ao expirar pagamento manual:", error);
+    return res.status(500).json({ message: "Erro interno ao expirar pagamento." });
+  }
+};

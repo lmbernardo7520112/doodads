@@ -13,12 +13,13 @@ import {
   pagarReservaSimulado,
   getReservaById,
 } from "../controllers/reserva.controller";
-import { confirmarPagamentoManual } from "../controllers/bookingPaymentManual.controller";
+import { confirmarPagamentoManual, expirarPagamentoManual } from "../controllers/bookingPaymentManual.controller";
 import generateSlots from "../utils/generateSlots";
 import rateLimit from "express-rate-limit";
 import { validateRequest } from "../middlewares/validateRequest";
 import { criarReservaSchema } from "../schemas/reserva.schema";
 import { confirmManualPaymentSchema } from "../schemas/confirmManualPayment.schema";
+import { expireManualPaymentSchema } from "../schemas/expireManualPayment.schema";
 
 // =============================================================
 // 🛡️ Rate Limiter de Reservas (Fase 1)
@@ -48,6 +49,14 @@ router.patch(
   authMiddleware,
   validateRequest(confirmManualPaymentSchema),
   confirmarPagamentoManual
+);
+
+// 🔒 Expiração manual/administrativa de pagamento vencido (barbeiro/admin only)
+router.patch(
+  "/pagamento-manual/:bookingPaymentId/expirar",
+  authMiddleware,
+  validateRequest(expireManualPaymentSchema),
+  expirarPagamentoManual
 );
 
 // ⚠️ Pagamento simulado (dev)
