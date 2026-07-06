@@ -1,19 +1,19 @@
 // =============================================================
 // 🎉 pagamento-sucesso/page.tsx — versão FINAL e robusta
 // Corrige 100% do problema de SWR stale data após pagamento
-// Fortemente instrumentado para debug
+// Suspense boundary adicionada para Next.js 15 compatibility
 // =============================================================
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import api from "@/lib/api";
 import { useReservas } from "@/hooks/useReservas";
 import { mutate as globalMutate } from "swr";
 
-export default function PagamentoSucessoPage() {
+function PagamentoSucessoContent() {
   const search = useSearchParams();
   const router = useRouter();
   const reservaId = search?.get("reserva");
@@ -152,5 +152,19 @@ export default function PagamentoSucessoPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function PagamentoSucessoPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center p-6">
+          <p className="text-gray-500">Carregando...</p>
+        </div>
+      }
+    >
+      <PagamentoSucessoContent />
+    </Suspense>
   );
 }

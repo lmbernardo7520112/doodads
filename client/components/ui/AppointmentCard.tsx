@@ -1,22 +1,47 @@
 // =============================================================
-// 📅 components/ui/AppointmentCard.tsx — versão FINAL
-// Integrado com Checkout Stripe + Debug reforçado
+// 📅 components/ui/AppointmentCard.tsx
+// -------------------------------------------------------------
+// Card de agendamento com suporte a status de pagamento manual
+// e ações de cancelamento integradas.
 // =============================================================
 
 "use client";
 
 import Image from "next/image";
-import { CheckCircle, Clock, XCircle, Timer, CreditCard } from "lucide-react";
+import {
+  CheckCircle,
+  Clock,
+  XCircle,
+  Timer,
+  AlertTriangle,
+  Ban,
+  Eye,
+  Loader2,
+} from "lucide-react";
 import toast from "react-hot-toast";
 import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import { useState } from "react";
 
 interface AppointmentCardProps {
   reserva: {
     _id: string;
     dataHora: string;
     status: "pendente" | "confirmado" | "cancelado" | "finalizado";
-    paymentStatus?: "pendente" | "aprovado" | "falhou";
+    paymentStatus?:
+      | "pendente"
+      | "aprovado"
+      | "falhou"
+      | "not_required"
+      | "pending"
+      | "paid"
+      | "expired"
+      | "refunded"
+      | "failed"
+      | "manual_review";
+    paymentRequired?: boolean;
+    paymentExpiresAt?: string;
+    cancelReason?: string;
     barbearia?: {
       nome: string;
       imagem?: string;
@@ -28,14 +53,84 @@ interface AppointmentCardProps {
       duracaoMin: number;
     };
   };
+  onUpdate?: () => void;
 }
 
-export default function AppointmentCard({ reserva }: AppointmentCardProps) {
-  const { token } = useAuth();
+// =============================================================
+// 🎨 Mapeamento de status de pagamento para labels PT-BR
+// =============================================================
+const PAYMENT_STATUS_MAP: Record<
+  string,
+  { label: string; description: string; tone: string; icon: React.ReactNode }
+> = {
+  pendente: {
+    label: "Pagamento pendente",
+    description: "Aguardando processamento.",
+    tone: "text-amber-600 bg-amber-50 border-amber-200",
+    icon: <Clock className="w-3.5 h-3.5" />,
+  },
+  pending: {
+    label: "Aguardando pagamento Pix",
+    description: "Realize o pagamento via Pix à barbearia.",
+    tone: "text-amber-600 bg-amber-50 border-amber-200",
+    icon: <Clock className="w-3.5 h-3.5" />,
+  },
+  aprovado: {
+    label: "Pagamento aprovado",
+    description: "Confirmado.",
+    tone: "text-emerald-600 bg-emerald-50 border-emerald-200",
+    icon: <CheckCircle className="w-3.5 h-3.5" />,
+  },
+  paid: {
+    label: "Pagamento confirmado",
+    description: "Pagamento recebido pela barbearia.",
+    tone: "text-emerald-600 bg-emerald-50 border-emerald-200",
+    icon: <CheckCircle className="w-3.5 h-3.5" />,
+  },
+  expired: {
+    label: "Pagamento expirado",
+    description: "O prazo expirou.",
+    tone: "text-red-600 bg-red-50 border-red-200",
+    icon: <Timer className="w-3.5 h-3.5" />,
+  },
+  falhou: {
+    label: "Pagamento falhou",
+    description: "Erro no processamento.",
+    tone: "text-red-600 bg-red-50 border-red-200",
+    icon: <XCircle className="w-3.5 h-3.5" />,
+  },
+  failed: {
+    label: "Pagamento falhou",
+    description: "Ocorreu uma falha.",
+    tone: "text-red-600 bg-red-50 border-red-200",
+    icon: <XCircle className="w-3.5 h-3.5" />,
+  },
+  refunded: {
+    label: "Reembolsado",
+    description: "O valor foi devolvido.",
+    tone: "text-blue-600 bg-blue-50 border-blue-200",
+    icon: <CheckCircle className="w-3.5 h-3.5" />,
+  },
+  manual_review: {
+    label: "Em análise manual",
+    description: "Encaminhado para análise.",
+    tone: "text-amber-700 bg-amber-50 border-amber-300",
+    icon: <Eye className="w-3.5 h-3.5" />,
+  },
+  not_required: {
+    label: "Pagamento não exigido",
+    description: "Sem pré-pagamento necessário.",
+    tone: "text-gray-500 bg-gray-50 border-gray-200",
+    icon: <CheckCircle className="w-3.5 h-3.5" />,
+  },
+};
 
-  console.debug(
-    `🧾 [AppointmentCard] render reserva=${reserva._id} status=${reserva.status} paymentStatus=${reserva.paymentStatus}`
-  );
+export default function AppointmentCard({
+  reserva,
+  onUpdate,
+}: AppointmentCardProps) {
+  const { token } = useAuth();
+  const [cancelling, setCancelling] = useState(false);
 
   const data = new Date(reserva.dataHora).toLocaleString("pt-BR", {
     day: "2-digit",
@@ -49,30 +144,33 @@ export default function AppointmentCard({ reserva }: AppointmentCardProps) {
     reserva.barbearia?.imagem ||
     "https://thumbs.dreamstime.com/z/barber-shop-chair-stylish-vintage-barber-chair-barbershop-armchair-modern-hairdresser-hair-salon-barber-shop-barber-shop-127929653.jpg?ct=jpeg";
 
+  // =============================================================
+  // 🎨 Status da reserva
+  // =============================================================
   const getStatusInfo = () => {
     switch (reserva.status) {
       case "confirmado":
         return {
           icon: <CheckCircle className="w-4 h-4" />,
-          label: "Confirmado",
-          color: "text-green-600",
+          label: "Confirmada",
+          color: "text-emerald-600",
         };
       case "pendente":
         return {
           icon: <Clock className="w-4 h-4" />,
           label: "Pendente",
-          color: "text-yellow-600",
+          color: "text-amber-600",
         };
       case "cancelado":
         return {
           icon: <XCircle className="w-4 h-4" />,
-          label: "Cancelado",
+          label: "Cancelada",
           color: "text-red-600",
         };
       case "finalizado":
         return {
           icon: <Timer className="w-4 h-4" />,
-          label: "Finalizado",
+          label: "Finalizada",
           color: "text-gray-500",
         };
       default:
@@ -87,52 +185,65 @@ export default function AppointmentCard({ reserva }: AppointmentCardProps) {
   const { icon, label, color } = getStatusInfo();
 
   // =============================================================
-  // 💳 Função de pagamento (Stripe Checkout)
+  // 💳 Status de pagamento
   // =============================================================
-  const handlePagamento = async () => {
-    console.debug(`💳 [AppointmentCard] Iniciando pagamento para ${reserva._id}`);
+  const paymentInfo =
+    reserva.paymentStatus && PAYMENT_STATUS_MAP[reserva.paymentStatus]
+      ? PAYMENT_STATUS_MAP[reserva.paymentStatus]
+      : null;
 
+  // Expiração do pagamento
+  const paymentExpiresAt = reserva.paymentExpiresAt
+    ? new Date(reserva.paymentExpiresAt)
+    : null;
+  const isPaymentExpiring =
+    paymentExpiresAt &&
+    reserva.paymentStatus === "pending" &&
+    paymentExpiresAt.getTime() > Date.now();
+  const expiresInMinutes = isPaymentExpiring
+    ? Math.max(0, Math.round((paymentExpiresAt!.getTime() - Date.now()) / 60000))
+    : null;
+
+  // =============================================================
+  // ❌ Cancelar reserva
+  // =============================================================
+  const handleCancelar = async () => {
     if (!token) {
       toast.error("Você precisa estar autenticado.");
       return;
     }
 
-    try {
-      toast.loading("Redirecionando para pagamento...");
+    const confirmed = window.confirm(
+      "Tem certeza que deseja cancelar esta reserva?"
+    );
+    if (!confirmed) return;
 
-      const res = await api.post(
-        "/pagamento/checkout",
-        { reservaId: reserva._id },
+    try {
+      setCancelling(true);
+      await api.patch(
+        `/reservas/${reserva._id}/cancelar`,
+        {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
-
-      toast.dismiss();
-
-      if (res.data?.url) {
-        console.debug(
-          `➡️ [AppointmentCard] Redirecionando para Stripe checkout: ${res.data.url}`
-        );
-        window.location.href = res.data.url;
-      } else {
-        console.error(
-          "❌ [AppointmentCard] Resposta inesperada do checkout:",
-          res.data
-        );
-        toast.error("Erro ao iniciar pagamento.");
-      }
+      toast.success("Reserva cancelada com sucesso!");
+      onUpdate?.();
     } catch (err: any) {
-      toast.dismiss();
-      console.error("❌ [AppointmentCard] Erro ao iniciar checkout:", err);
-      toast.error(err?.response?.data?.message || "Erro ao iniciar pagamento.");
+      console.error("❌ Erro ao cancelar:", err);
+      const msg =
+        err?.response?.data?.message || "Erro ao cancelar reserva.";
+      toast.error(msg);
+    } finally {
+      setCancelling(false);
     }
   };
 
   // =============================================================
-  // Render UI
+  // 🎨 Render UI
   // =============================================================
-  return (
-    <div className="flex flex-col gap-3 bg-white rounded-xl shadow-sm p-3 hover:shadow-md transition">
+  const canCancel = reserva.status === "pendente";
 
+  return (
+    <div className="flex flex-col gap-3 bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition">
       {/* Linha superior */}
       <div className="flex gap-3 items-center">
         <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg">
@@ -145,39 +256,70 @@ export default function AppointmentCard({ reserva }: AppointmentCardProps) {
           />
         </div>
 
-        <div className="flex flex-col justify-center flex-1">
-          <h3 className="font-semibold text-gray-900">
+        <div className="flex flex-col justify-center flex-1 min-w-0">
+          <h3 className="font-semibold text-gray-900 truncate">
             {reserva.barbearia?.nome ?? "Barbearia não identificada"}
           </h3>
 
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-600 truncate">
             {reserva.servico?.nome ?? "Serviço"} — 💰 R${" "}
             {reserva.servico?.preco?.toFixed(2) ?? "0,00"}
           </p>
 
           <p className="text-xs text-gray-500">{data}</p>
 
-          <p className={`flex items-center gap-1 text-xs font-medium ${color}`}>
+          <p
+            className={`flex items-center gap-1 text-xs font-medium ${color}`}
+          >
             {icon}
             {label}
           </p>
         </div>
       </div>
 
-      {/* =============================================================
-          💳 BOTÃO PAGAR AGORA
-         ============================================================= */}
-      {reserva.status === "pendente" &&
-        (reserva.paymentStatus === "pendente" ||
-          !reserva.paymentStatus) && (
-          <button
-            onClick={handlePagamento}
-            className="w-full bg-black text-white rounded-lg py-2 font-medium flex items-center justify-center gap-2 hover:bg-gray-800 transition"
+      {/* Status de pagamento */}
+      {paymentInfo &&
+        reserva.paymentStatus !== "not_required" &&
+        reserva.paymentStatus !== "pendente" && (
+          <div
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium ${paymentInfo.tone}`}
           >
-            <CreditCard className="w-4 h-4" />
-            Pagar agora
-          </button>
+            {paymentInfo.icon}
+            <div>
+              <span>{paymentInfo.label}</span>
+              {isPaymentExpiring && expiresInMinutes !== null && (
+                <span className="ml-2 opacity-80">
+                  · ⏳ {expiresInMinutes} min restantes
+                </span>
+              )}
+            </div>
+          </div>
         )}
+
+      {/* Motivo do cancelamento */}
+      {reserva.status === "cancelado" && reserva.cancelReason && (
+        <div className="flex items-start gap-2 px-3 py-2 rounded-lg border border-red-200 bg-red-50 text-xs text-red-600">
+          <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+          <span>Motivo: {reserva.cancelReason}</span>
+        </div>
+      )}
+
+      {/* Botão cancelar */}
+      {canCancel && (
+        <button
+          id={`cancel-reserva-${reserva._id}`}
+          onClick={handleCancelar}
+          disabled={cancelling}
+          className="w-full flex items-center justify-center gap-2 text-red-600 bg-red-50 border border-red-200 rounded-lg py-2 text-sm font-medium hover:bg-red-100 disabled:opacity-50 transition"
+        >
+          {cancelling ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Ban className="w-4 h-4" />
+          )}
+          {cancelling ? "Cancelando..." : "Cancelar Reserva"}
+        </button>
+      )}
     </div>
   );
 }
