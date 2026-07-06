@@ -15,11 +15,14 @@ import AppointmentCard from "@/components/ui/AppointmentCard";
 import { useBarbearias } from "@/hooks/useBarbearias";
 import { useReservas } from "@/hooks/useReservas";
 import useRoleRedirect from "@/hooks/useRoleRedirect";
+import { useAuth } from "@/context/AuthContext";
+import BarberDashboard from "@/components/BarberDashboard";
 
 const TAGS = ["✂️ Cabelo", "💈 Barba", "✨ Combo"];
 
 export default function HomePage() {
   useRoleRedirect(); // exige login
+  const { user } = useAuth();
 
   const [query, setQuery] = useState("");
   const [selectedQuery, setSelectedQuery] = useState<string | null>(null);
@@ -27,6 +30,10 @@ export default function HomePage() {
 
   const { data: barbearias = [], loading: loadingBarb } = useBarbearias(selectedQuery || query);
   const { data: reservas = [], loading: loadingRes, mutate: mutateReservas } = useReservas();
+
+  if (user?.tipo === "barbeiro") {
+    return <BarberDashboard />;
+  }
 
   const loading = loadingBarb || loadingRes;
 

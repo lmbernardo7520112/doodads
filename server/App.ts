@@ -15,9 +15,11 @@ app.use(express.json());
 // Rotas
 import reservaRoutes from "./routes/reserva.routes";
 import pagamentoRoutes from "./routes/pagamento.routes";
+import barbeariaRoutes from "./routes/barbearias.routes";
 
 app.use("/api/reservas", reservaRoutes);
 app.use("/api/pagamento", pagamentoRoutes);
+app.use("/api/barbearias", barbeariaRoutes);
 
 // Healthcheck
 app.get("/health", (req, res) => {

@@ -9,6 +9,7 @@
 
 import { useState, useEffect } from "react";
 import { Dialog } from "@headlessui/react";
+import { useRouter } from "next/navigation";
 import {
   CalendarIcon,
   Clock,
@@ -60,6 +61,7 @@ export default function ReservaModal({
   servico,
 }: ReservaModalProps) {
   const { token } = useAuth();
+  const router = useRouter();
   const [date, setDate] = useState("");
   const [slots, setSlots] = useState<string[]>([]);
   const [selectedSlot, setSelectedSlot] = useState("");
@@ -188,6 +190,7 @@ export default function ReservaModal({
       } else {
         toast.success(data.message || "Reserva criada com sucesso! 🎉");
         onClose();
+        router.push("/reservas");
       }
     } catch (err: any) {
       console.error("❌ Erro ao confirmar reserva:", err);
@@ -276,7 +279,10 @@ export default function ReservaModal({
             )}
 
             <button
-              onClick={onClose}
+              onClick={() => {
+                onClose();
+                router.push("/reservas");
+              }}
               className="w-full bg-black text-white rounded-lg py-2 font-medium hover:bg-gray-800 transition"
             >
               Entendi, vou pagar
