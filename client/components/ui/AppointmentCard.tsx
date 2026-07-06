@@ -78,13 +78,13 @@ const PAYMENT_STATUS_MAP: Record<
   aprovado: {
     label: "Pagamento aprovado",
     description: "Confirmado.",
-    tone: "text-emerald-600 bg-emerald-50 border-emerald-200",
+    tone: "text-green-600 bg-green-50 border-green-200",
     icon: <CheckCircle className="w-3.5 h-3.5" />,
   },
   paid: {
     label: "Pagamento confirmado",
     description: "Pagamento recebido pela barbearia.",
-    tone: "text-emerald-600 bg-emerald-50 border-emerald-200",
+    tone: "text-green-600 bg-green-50 border-green-200",
     icon: <CheckCircle className="w-3.5 h-3.5" />,
   },
   expired: {
@@ -152,14 +152,14 @@ export default function AppointmentCard({
       case "confirmado":
         return {
           icon: <CheckCircle className="w-4 h-4" />,
-          label: "Confirmada",
-          color: "text-emerald-600",
+          label: "Confirmado",
+          color: "text-green-600",
         };
       case "pendente":
         return {
           icon: <Clock className="w-4 h-4" />,
           label: "Pendente",
-          color: "text-amber-600",
+          color: "text-yellow-600",
         };
       case "cancelado":
         return {
@@ -243,7 +243,7 @@ export default function AppointmentCard({
   const canCancel = reserva.status === "pendente";
 
   return (
-    <div className="flex flex-col gap-3 bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition">
+    <div className="flex flex-col gap-3 bg-white rounded-xl shadow-sm p-3 hover:shadow-md transition">
       {/* Linha superior */}
       <div className="flex gap-3 items-center">
         <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg">
@@ -256,7 +256,7 @@ export default function AppointmentCard({
           />
         </div>
 
-        <div className="flex flex-col justify-center flex-1 min-w-0">
+        <div className="flex flex-col justify-center flex-1">
           <h3 className="font-semibold text-gray-900 truncate">
             {reserva.barbearia?.nome ?? "Barbearia não identificada"}
           </h3>
