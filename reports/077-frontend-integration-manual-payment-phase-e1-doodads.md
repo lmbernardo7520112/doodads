@@ -64,8 +64,46 @@ Integrar o frontend (Next.js) com o backend de pagamento manual (manual_pix D0-D
 | `client/app/home/page.tsx` | MODIFICADO (onUpdate callback) |
 | `client/app/reservas/page.tsx` | MODIFICADO (onUpdate callback) |
 
+## Correção Adicional: Bug Pré-existente
+- **`client/app/pagamento-sucesso/page.tsx`** — `useSearchParams()` sem Suspense boundary. Corrigido adicionando wrapper `<Suspense>` conforme exigido pelo Next.js 15.
+
+## Validações
+
+### TypeScript Backend
+```
+cd server && npx tsc --noEmit
+```
+**Resultado:** 0 erros de compilação.
+
+### Testes Backend
+```
+cd server && npm run test
+```
+**Resultado:** Test Suites: 18 passed, 18 total. Tests: 312 passed, 312 total. Time: 19.459s.
+
+### Build Frontend
+```
+cd client && npx next build
+```
+**Resultado:** Build successful. Todas as rotas compiladas:
+- `/` — 2.54 kB
+- `/home` — 3.03 kB
+- `/login` — 2.42 kB
+- `/pagamento-sucesso` — 3.13 kB
+- `/register` — 2.13 kB
+- `/reservas` — 490 B
+- `/barbearia/[id]` — 20.8 kB (Dynamic)
+
+## Metadados do Commit
+- **Branch:** `feat/doodads-frontend-integration-phase-e1`
+- **Hash:** `ea094eb`
+
 ## Decisão GO / NO-GO
-Pendente de:
+**GO.** Phase E1 implementada com:
 1. ✅ TypeScript backend: 0 erros.
-2. ⏳ Testes backend: Aguardando resultado.
-3. ⏳ Build frontend: A ser validado.
+2. ✅ Testes backend: 312/312 passando (18 suítes).
+3. ✅ Build frontend: Sucesso em todas as rotas.
+4. ✅ ADR D8 respeitada: Sem regras de negócio em controllers, sem Pix real.
+5. ✅ Contratos de segurança mantidos: Rate limiting, Zod validation, ownership.
+
+DECISÃO: PHASE E1 FRONTEND INTEGRATION IMPLEMENTADA. RESERVAMODAL AGORA BUSCA TERMSVERSION ATIVA, EXIBE CHECKBOX DE ACEITE EXPANSÍVEL E ENVIA ACCEPTEDTERMS NO PAYLOAD. PÓS-RESERVA EXIBE INSTRUÇÃO DE PAGAMENTO PIX MANUAL COM VALOR E EXPIRAÇÃO. APPOINTMENTCARD REESCRITO COM 10 STATUS DE PAGAMENTO PT-BR, BOTÃO DE CANCELAMENTO FUNCIONAL, COUNTDOWN DE EXPIRAÇÃO E EXIBIÇÃO DE MOTIVO DE CANCELAMENTO. ENDPOINT GET /API/TERMS/ACTIVE CRIADO. BUG PRÉ-EXISTENTE DE SUSPENSE BOUNDARY CORRIGIDO. TESTES, TYPESCRIPT E BUILD PERMANECEM VERDES.
