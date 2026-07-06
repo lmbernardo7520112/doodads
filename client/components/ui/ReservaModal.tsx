@@ -213,8 +213,8 @@ export default function ReservaModal({
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <Dialog.Panel className="bg-white rounded-2xl p-6 w-full max-w-md shadow-lg space-y-5">
             <div className="flex items-center gap-3">
-              <div className="bg-emerald-100 rounded-full p-2">
-                <CheckCircle className="w-6 h-6 text-emerald-600" />
+              <div className="bg-green-100 rounded-full p-2">
+                <CheckCircle className="w-6 h-6 text-green-600" />
               </div>
               <Dialog.Title className="text-xl font-semibold text-gray-800">
                 Reserva Confirmada!
@@ -277,7 +277,7 @@ export default function ReservaModal({
 
             <button
               onClick={onClose}
-              className="w-full bg-emerald-600 text-white rounded-lg py-2.5 font-medium hover:bg-emerald-700 transition"
+              className="w-full bg-black text-white rounded-lg py-2 font-medium hover:bg-gray-800 transition"
             >
               Entendi, vou pagar
             </button>
@@ -318,7 +318,7 @@ export default function ReservaModal({
               id="reserva-date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 mt-1 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition"
+              className="w-full border rounded-lg px-3 py-2 mt-1"
               min={minDate}
             />
           </div>
@@ -346,8 +346,8 @@ export default function ReservaModal({
                       onClick={() => setSelectedSlot(slot)}
                       className={`px-3 py-2 rounded-lg text-sm border transition ${
                         selectedSlot === slot
-                          ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
-                          : "bg-gray-50 hover:bg-gray-100 border-gray-200"
+                          ? "bg-black text-white border-black"
+                          : "bg-gray-50 hover:bg-gray-100"
                       }`}
                     >
                       {slot}
@@ -367,7 +367,7 @@ export default function ReservaModal({
                   id="accept-terms"
                   checked={acceptedTerms}
                   onChange={(e) => setAcceptedTerms(e.target.checked)}
-                  className="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                  className="mt-1 h-4 w-4 rounded border-gray-300 text-black focus:ring-black cursor-pointer"
                 />
                 <label
                   htmlFor="accept-terms"
@@ -377,7 +377,7 @@ export default function ReservaModal({
                   <button
                     type="button"
                     onClick={() => setShowTermsContent(!showTermsContent)}
-                    className="text-emerald-600 hover:text-emerald-700 underline font-medium inline-flex items-center gap-1"
+                    className="text-black hover:text-gray-700 underline font-medium inline-flex items-center gap-1"
                   >
                     <FileText size={14} />
                     {terms.title}
@@ -409,7 +409,7 @@ export default function ReservaModal({
             id="confirm-reserva"
             onClick={handleConfirmar}
             disabled={saving || (terms !== null && !acceptedTerms)}
-            className="w-full bg-emerald-600 text-white rounded-lg py-2.5 mt-3 font-medium hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition"
+            className="w-full bg-black text-white rounded-lg py-2 mt-3 font-medium hover:bg-gray-800 disabled:opacity-60 flex items-center justify-center gap-2"
           >
             {saving && <Loader2 className="w-4 h-4 animate-spin" />}
             {saving ? "Confirmando..." : "Confirmar Reserva"}
