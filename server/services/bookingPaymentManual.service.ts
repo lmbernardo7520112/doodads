@@ -29,6 +29,8 @@ export interface ConfirmManualBookingPaymentResult {
 
 export interface ExpireOverdueManualBookingPaymentInput {
   bookingPaymentId: string;
+  userId: string;
+  userTipo: "admin" | "barbeiro" | "cliente";
 }
 
 export interface ExpireOverdueManualBookingPaymentResult {
@@ -326,14 +328,31 @@ export class BookingPaymentManualService {
   async expireOverdueManualBookingPayment(
     input: ExpireOverdueManualBookingPaymentInput
   ): Promise<ExpireOverdueManualBookingPaymentResult> {
-    const { bookingPaymentId } = input;
+    const { bookingPaymentId, userId, userTipo } = input;
 
     // 1. Validação de ObjectId
     if (!bookingPaymentId || !mongoose.Types.ObjectId.isValid(bookingPaymentId)) {
       throw new AppError("ID do pagamento inválido.", 400, "INVALID_BOOKING_PAYMENT_ID");
     }
 
-    // 2. Buscar BookingPayment
+    // 2. Autorização: apenas barbeiro ou admin
+    if (userTipo === "cliente") {
+      throw new AppError(
+        "Clientes não podem expirar pagamentos.",
+        403,
+        "CLIENT_CANNOT_EXPIRE_PAYMENT"
+      );
+    }
+
+    if (!["barbeiro", "admin"].includes(userTipo)) {
+      throw new AppError(
+        "Usuário não autorizado a expirar pagamentos.",
+        403,
+        "UNAUTHORIZED_EXPIRE_PAYMENT"
+      );
+    }
+
+    // 3. Buscar BookingPayment
     const bookingPayment = await bookingPaymentRepository.findById(bookingPaymentId);
     if (!bookingPayment) {
       throw new AppError("Pagamento não encontrado.", 404, "BOOKING_PAYMENT_NOT_FOUND");
@@ -382,7 +401,25 @@ export class BookingPaymentManualService {
       );
     }
 
-    // 6. Buscar Reserva associada
+    // 6. Ownership: verificar que o usuário pertence à barbearia
+    const barbearia = await Barbearia.findById(bookingPayment.barbeariaId);
+    if (!barbearia) {
+      throw new AppError("Barbearia associada ao pagamento não encontrada.", 404, "BARBEARIA_NOT_FOUND");
+    }
+
+    if (userTipo === "barbeiro") {
+      const barbeiroDaBarbearia = barbearia.barbeiro?.toString();
+      if (barbeiroDaBarbearia !== userId) {
+        throw new AppError(
+          "Você não tem permissão para expirar pagamentos desta barbearia.",
+          403,
+          "OWNERSHIP_MISMATCH"
+        );
+      }
+    }
+    // admin pode expirar qualquer barbearia
+
+    // 7. Buscar Reserva associada
     const reserva = await reservaRepository.findByIdRaw(bookingPayment.reservaId.toString());
     if (!reserva) {
       throw new AppError(
@@ -392,7 +429,7 @@ export class BookingPaymentManualService {
       );
     }
 
-    // 7. Validar consistência Reserva ↔ BookingPayment
+    // 8. Validar consistência Reserva ↔ BookingPayment
     if (!reserva.paymentRequired) {
       throw new AppError(
         "A reserva associada não requer pagamento.",
@@ -409,7 +446,7 @@ export class BookingPaymentManualService {
       );
     }
 
-    // 8. Expirar: atualizar BookingPayment
+    // 9. Expirar: atualizar BookingPayment
     const now = new Date();
     const updatedPayment = await bookingPaymentRepository.updateStatus(
       bookingPaymentId,
@@ -419,6 +456,8 @@ export class BookingPaymentManualService {
           ...bookingPayment.metadataSafe as Record<string, unknown>,
           expiredAt: now.toISOString(),
           expirationReason: "overdue_manual_payment",
+          expiredBy: userId,
+          expiredByTipo: userTipo,
         },
       }
     );
@@ -427,7 +466,7 @@ export class BookingPaymentManualService {
       throw new AppError("Falha ao atualizar o pagamento.", 500, "PAYMENT_UPDATE_FAILED");
     }
 
-    // 9. Atualizar Reserva
+    // 10. Atualizar Reserva
     reserva.paymentStatus = "expired";
     // Nota: status principal da Reserva preservado (sem alteração indevida).
     // A decisão sobre cancelamento automático da reserva será em fase futura.
