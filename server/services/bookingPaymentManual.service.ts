@@ -1,10 +1,12 @@
 import mongoose from "mongoose";
 import { bookingPaymentRepository } from "../repositories/bookingPayment.repository";
 import { reservaRepository } from "../repositories/reserva.repository";
-import { IBookingPayment } from "../models/BookingPayment";
+import BookingPayment, { IBookingPayment } from "../models/BookingPayment";
 import { IReserva } from "../models/Reserva";
 import Barbearia from "../models/Barbearia";
 import { AppError } from "../errors/AppError";
+import { presentPaymentStatus, presentReservaStatus } from "../presenters/statusPresenter";
+
 
 export interface CreateManualBookingPaymentInput {
   reservaId: string;
@@ -37,6 +39,28 @@ export interface ExpireOverdueManualBookingPaymentResult {
   bookingPayment: IBookingPayment;
   reserva: IReserva;
 }
+
+export interface ListarPagamentosManuaisInput {
+  barbeariaId: string;
+  userId: string;
+  userTipo: "admin" | "barbeiro" | "cliente";
+  status?: string;
+  overdueOnly?: boolean;
+  manualReviewOnly?: boolean;
+  limit?: number;
+  page?: number;
+}
+
+export interface ListarPagamentosManuaisResult {
+  data: any[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
 
 /**
  * Sanitiza o objeto metadataSafe removendo qualquer chave sensível ou suspeita.
@@ -476,6 +500,121 @@ export class BookingPaymentManualService {
     return {
       bookingPayment: updatedPayment,
       reserva: updatedReserva,
+    };
+  }
+
+  async listarPagamentosManuais(input: ListarPagamentosManuaisInput): Promise<ListarPagamentosManuaisResult> {
+    const { barbeariaId, userId, userTipo, status, overdueOnly, manualReviewOnly, limit, page } = input;
+
+    // 1. Validação de barbeariaId
+    if (!barbeariaId || !mongoose.Types.ObjectId.isValid(barbeariaId)) {
+      throw new AppError("ID da barbearia inválido.", 400, "INVALID_BARBEARIA_ID");
+    }
+
+    // 2. Autorização por papel
+    if (userTipo === "cliente") {
+      throw new AppError("Clientes não podem listar pagamentos da barbearia.", 403, "CLIENT_CANNOT_LIST_PAYMENTS");
+    }
+
+    // 3. Buscar barbearia e verificar ownership
+    const barbearia = await Barbearia.findById(barbeariaId);
+    if (!barbearia) {
+      throw new AppError("Barbearia não encontrada.", 404, "BARBEARIA_NOT_FOUND");
+    }
+
+    if (userTipo === "barbeiro") {
+      if (barbearia.barbeiro?.toString() !== userId) {
+        throw new AppError("Você não tem permissão para listar pagamentos desta barbearia.", 403, "OWNERSHIP_MISMATCH");
+      }
+    }
+
+    // 4. Construir query
+    const query: any = { barbeariaId: new mongoose.Types.ObjectId(barbeariaId) };
+
+    if (status) {
+      const validStatuses = ["pending", "paid", "expired", "cancelled", "refunded", "failed", "manual_review"];
+      if (!validStatuses.includes(status)) {
+        throw new AppError("Status inválido.", 400, "INVALID_STATUS_FILTER");
+      }
+      query.status = status;
+    }
+
+    if (overdueOnly) {
+      query.status = "pending";
+      query.expiresAt = { $lt: new Date() };
+    }
+
+    if (manualReviewOnly) {
+      query.status = "manual_review";
+    }
+
+    // 5. Paginação
+    const parsedLimit = Math.min(100, Math.max(1, limit || 20));
+    const parsedPage = Math.max(1, page || 1);
+    const skip = (parsedPage - 1) * parsedLimit;
+
+    // 6. Consultar
+    const total = await BookingPayment.countDocuments(query);
+    const payments = await BookingPayment.find(query)
+      .populate({
+        path: "reservaId",
+        populate: [
+          { path: "servico", select: "nome preco duracaoMin" },
+          { path: "usuario", select: "nomeCompleto telefone" }
+        ]
+      })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parsedLimit);
+
+    // 7. Mapear para response seguro
+    const data = payments.map((p: any) => {
+      const hasExpired = p.expiresAt && p.expiresAt.getTime() < Date.now();
+      const canConfirm = p.status === "pending" && !hasExpired;
+      const canExpire = p.status === "pending" && hasExpired;
+
+      const resObj = p.reservaId;
+      const resPresentation = resObj ? presentReservaStatus(resObj.status) : undefined;
+
+      return {
+        bookingPaymentId: p._id.toString(),
+        reservaId: p.reservaId ? p.reservaId._id.toString() : null,
+        barbeariaId: p.barbeariaId.toString(),
+        amountCents: p.amountCents,
+        currency: p.currency,
+        paymentStatus: p.status,
+        expiresAt: p.expiresAt,
+        paidAt: p.paidAt,
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
+        canConfirm,
+        canExpire,
+        paymentStatusPresentation: presentPaymentStatus(p.status),
+        reservaStatusPresentation: resPresentation,
+        reserva: resObj ? {
+          dataHora: resObj.dataHora,
+          status: resObj.status,
+          servico: resObj.servico ? {
+            nome: resObj.servico.nome,
+            preco: resObj.servico.preco,
+            duracaoMin: resObj.servico.duracaoMin
+          } : null,
+          usuario: resObj.usuario ? {
+            nomeCompleto: resObj.usuario.nomeCompleto,
+            telefone: resObj.usuario.telefone
+          } : null
+        } : null
+      };
+    });
+
+    return {
+      data,
+      pagination: {
+        total,
+        page: parsedPage,
+        limit: parsedLimit,
+        totalPages: Math.ceil(total / parsedLimit)
+      }
     };
   }
 }

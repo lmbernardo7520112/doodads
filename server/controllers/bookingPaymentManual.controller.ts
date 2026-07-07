@@ -9,6 +9,7 @@ import { Request, Response } from "express";
 import { bookingPaymentManualService } from "../services/bookingPaymentManual.service";
 import { AppError } from "../errors/AppError";
 import { presentPaymentStatus, presentReservaStatus } from "../presenters/statusPresenter";
+import { z } from "zod";
 
 const getUserInfo = (req: Request) => {
   const user = (req as any).user || {};
@@ -121,5 +122,58 @@ export const expirarPagamentoManual = async (req: Request, res: Response) => {
     }
     console.error("Erro ao expirar pagamento manual:", error);
     return res.status(500).json({ message: "Erro interno ao expirar pagamento." });
+  }
+};
+
+const listQuerySchema = z.object({
+  status: z.enum(["pending", "paid", "expired", "cancelled", "refunded", "failed", "manual_review"]).optional(),
+  overdueOnly: z.preprocess((val) => val === "true" || val === true, z.boolean()).optional(),
+  manualReviewOnly: z.preprocess((val) => val === "true" || val === true, z.boolean()).optional(),
+  limit: z.preprocess((val) => val ? parseInt(String(val), 10) : undefined, z.number().int().min(1).max(100)).optional(),
+  page: z.preprocess((val) => val ? parseInt(String(val), 10) : undefined, z.number().int().min(1)).optional(),
+}).strict();
+
+/**
+ * GET /api/barbearias/:barbeariaId/pagamentos-manuais
+ *
+ * Lista pagamentos manuais da barbearia.
+ * Apenas barbeiro proprietário da barbearia ou admin.
+ */
+export const listarPagamentosManuaisBarbearia = async (req: Request, res: Response) => {
+  try {
+    const { id: userId, tipo: userTipo } = getUserInfo(req);
+
+    if (!userId || !userTipo) {
+      return res.status(401).json({ message: "Não autorizado." });
+    }
+
+    const { barbeariaId } = req.params;
+
+    // Validar query parameters usando schema strict
+    const parsedQuery = listQuerySchema.safeParse(req.query);
+    if (!parsedQuery.success) {
+      return res.status(400).json({
+        message: "Erro de validação de dados.",
+        detalhes: parsedQuery.error.issues,
+      });
+    }
+
+    const result = await bookingPaymentManualService.listarPagamentosManuais({
+      barbeariaId,
+      userId,
+      userTipo: userTipo as "admin" | "barbeiro" | "cliente",
+      ...parsedQuery.data,
+    });
+
+    return res.status(200).json(result);
+  } catch (error) {
+    if (error instanceof AppError) {
+      return res.status(error.statusCode).json({
+        message: error.message,
+        code: error.code,
+      });
+    }
+    console.error("Erro ao listar pagamentos manuais da barbearia:", error);
+    return res.status(500).json({ message: "Erro interno ao listar pagamentos manuais." });
   }
 };
