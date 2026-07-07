@@ -19,6 +19,7 @@ import {
   Eye,
   Loader2,
   Info,
+  Coins,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import api from "@/lib/api";
@@ -44,6 +45,7 @@ interface AppointmentCardProps {
       | "manual_review"
       | "cancelled";
     paymentRequired?: boolean;
+    bookingPaymentId?: string;
     paymentExpiresAt?: string;
     cancelReason?: string;
     barbearia?: {
@@ -142,6 +144,8 @@ export default function AppointmentCard({
   const { token } = useAuth();
   const [cancelling, setCancelling] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [reportingPayment, setReportingPayment] = useState(false);
+  const [showReportPaymentModal, setShowReportPaymentModal] = useState(false);
 
   const data = new Date(reserva.dataHora).toLocaleString("pt-BR", {
     day: "2-digit",
@@ -218,7 +222,7 @@ export default function AppointmentCard({
   // P0-C: Verifica se o pagamento manual está pendente e a reserva está ativa
   const isManualPaymentPending =
     reserva.paymentRequired &&
-    reserva.paymentStatus === "pending" &&
+    (reserva.paymentStatus === "pending" || reserva.paymentStatus === "pendente") &&
     reserva.status !== "cancelado";
 
   // =============================================================
@@ -247,6 +251,40 @@ export default function AppointmentCard({
       toast.error(msg);
     } finally {
       setCancelling(false);
+    }
+  };
+
+  // =============================================================
+  // 👥 Declarar Pix enviado (Já enviei o Pix)
+  // =============================================================
+  const handleReportPaymentConfirm = async () => {
+    if (!token) {
+      toast.error("Você precisa estar autenticado.");
+      return;
+    }
+
+    if (!reserva.bookingPaymentId) {
+      toast.error("Identificador do pagamento não disponível.");
+      return;
+    }
+
+    try {
+      setReportingPayment(true);
+      setShowReportPaymentModal(false);
+      await api.patch(
+        `/reservas/pagamento-manual/${reserva.bookingPaymentId}/declarar-pago`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      toast.success("Pagamento declarado com sucesso! Aguardando confirmação do estabelecimento.");
+      onUpdate?.();
+    } catch (err: any) {
+      console.error("❌ Erro ao declarar pagamento:", err);
+      const msg =
+        err?.response?.data?.message || "Erro ao declarar pagamento.";
+      toast.error(msg);
+    } finally {
+      setReportingPayment(false);
     }
   };
 
@@ -322,18 +360,22 @@ export default function AppointmentCard({
         {isManualPaymentPending && !isPast && (
           <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg border border-blue-200 bg-blue-50 text-xs text-blue-700 leading-relaxed">
             <Info className="w-4 h-4 mt-0.5 flex-shrink-0 text-blue-500" />
-            <div>
+            <div className="w-full">
               <p className="font-semibold">Pagamento manual pendente</p>
               <p className="mt-1">
-                Realize o pagamento diretamente à barbearia e aguarde a
-                confirmação do recebimento pelo estabelecimento.
+                Realize o pagamento por fora via Pix e confirme abaixo:
               </p>
+              <div className="mt-2 p-2 bg-blue-100/50 rounded border border-blue-200/50 space-y-1 font-mono text-[11px]">
+                <p><strong>Chave Pix (E-mail):</strong> pix@{reserva.barbearia?.nome?.toLowerCase().replace(/[^a-z0-9]/g, "") || "doodads"}.com.br</p>
+                <p><strong>Favorecido:</strong> {reserva.barbearia?.nome || "Barbearia"}</p>
+                <p><strong>Valor:</strong> R$ {reserva.servico?.preco?.toFixed(2) || "0,00"}</p>
+              </div>
               {reserva.barbearia?.telefone1 && (
-                <p className="mt-1 font-medium">
+                <p className="mt-1.5 font-medium">
                   📞 Contato: {reserva.barbearia.telefone1}
                 </p>
               )}
-              <p className="mt-1 opacity-75">
+              <p className="mt-1 opacity-75 text-[10px]">
                 O Doodads não processa pagamentos nem recebe valores.
               </p>
             </div>
@@ -356,22 +398,42 @@ export default function AppointmentCard({
           </div>
         )}
 
-        {/* Botão cancelar */}
-        {canCancel && (
-          <button
-            id={`cancel-reserva-${reserva._id}`}
-            onClick={() => setShowCancelModal(true)}
-            disabled={cancelling}
-            className="w-full flex items-center justify-center gap-2 text-red-600 bg-red-50 border border-red-200 rounded-lg py-2 text-sm font-medium hover:bg-red-100 disabled:opacity-50 transition"
-          >
-            {cancelling ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Ban className="w-4 h-4" />
-            )}
-            {cancelling ? "Cancelando..." : "Cancelar Reserva"}
-          </button>
-        )}
+        {/* Botões de Ações */}
+        <div className="flex flex-col gap-2">
+          {/* Já enviei o Pix */}
+          {isManualPaymentPending && !isPast && (
+            <button
+              id={`report-payment-${reserva._id}`}
+              onClick={() => setShowReportPaymentModal(true)}
+              disabled={reportingPayment}
+              className="w-full flex items-center justify-center gap-2 text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg py-2 text-sm font-semibold disabled:opacity-50 transition"
+            >
+              {reportingPayment ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Coins className="w-4 h-4" />
+              )}
+              {reportingPayment ? "Declarando..." : "Já enviei o Pix"}
+            </button>
+          )}
+
+          {/* Botão cancelar */}
+          {canCancel && (
+            <button
+              id={`cancel-reserva-${reserva._id}`}
+              onClick={() => setShowCancelModal(true)}
+              disabled={cancelling}
+              className="w-full flex items-center justify-center gap-2 text-red-600 bg-red-50 border border-red-200 rounded-lg py-2 text-sm font-medium hover:bg-red-100 disabled:opacity-50 transition"
+            >
+              {cancelling ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Ban className="w-4 h-4" />
+              )}
+              {cancelling ? "Cancelando..." : "Cancelar Reserva"}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Modal de cancelamento */}
@@ -386,6 +448,19 @@ export default function AppointmentCard({
         reasonPlaceholder="Motivo do cancelamento (opcional)..."
         onConfirm={handleCancelConfirm}
         onCancel={() => setShowCancelModal(false)}
+      />
+
+      {/* Modal de declaração de pagamento */}
+      <ConfirmModal
+        isOpen={showReportPaymentModal}
+        title="Declarar Envio de Pix"
+        message={`Você confirma que realizou o pagamento de R$ ${reserva.servico?.preco?.toFixed(2) || "0,00"} via Pix por fora do aplicativo para ${reserva.barbearia?.nome || "a barbearia"}?\n\nO estabelecimento irá validar o recebimento do valor em conta bancária antes de confirmar seu agendamento.`}
+        confirmLabel="Confirmar envio"
+        cancelLabel="Voltar"
+        tone="success"
+        showReasonField={false}
+        onConfirm={handleReportPaymentConfirm}
+        onCancel={() => setShowReportPaymentModal(false)}
       />
     </>
   );

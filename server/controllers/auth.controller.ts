@@ -59,15 +59,24 @@ export const register = async (req: Request, res: Response) => {
 export const login = async (req: Request, res: Response) => {
   try {
     const { email, senha } = req.body;
+    console.log(`🔑 [DEBUG LOGIN] Attempt: email="${email}" passwordLength=${senha?.length}`);
     const usuario = await User.findOne({ email });
-    if (!usuario)
+    if (!usuario) {
+      console.log(`❌ [DEBUG LOGIN] Fail: User "${email}" not found.`);
       return res.status(404).json({ message: "Usuário não encontrado." });
+    }
 
-    if (!usuario.senha)
+    if (!usuario.senha) {
+      console.log(`❌ [DEBUG LOGIN] Fail: User "${email}" has no password.`);
       return res.status(400).json({ message: "Usuário sem senha cadastrada." });
+    }
 
     const isMatch = await bcrypt.compare(senha, usuario.senha);
-    if (!isMatch) return res.status(401).json({ message: "Senha incorreta." });
+    if (!isMatch) {
+      console.log(`❌ [DEBUG LOGIN] Fail: Password mismatch for user "${email}".`);
+      return res.status(401).json({ message: "Senha incorreta." });
+    }
+    console.log(`✅ [DEBUG LOGIN] Success: user="${email}"`);
 
     const token = generateToken({
       id: usuario._id,

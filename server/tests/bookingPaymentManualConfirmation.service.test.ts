@@ -402,27 +402,16 @@ describe("BookingPaymentManual — Confirmação Manual (Phase D4)", () => {
   // 11. PAGAMENTO MANUAL_REVIEW NÃO CONFIRMA
   // =====================================================
 
-  it("deve rejeitar confirmação de pagamento manual_review (409 PAYMENT_UNDER_REVIEW)", async () => {
+  it("deve permitir confirmação de pagamento manual_review", async () => {
     const { bookingPayment } = await createPendingPaymentWithReserva({ status: "manual_review" });
 
-    await expect(
-      bookingPaymentManualService.confirmManualBookingPayment({
-        bookingPaymentId: bookingPayment._id.toString(),
-        userId: barbeiroUserId,
-        userTipo: "barbeiro",
-      })
-    ).rejects.toThrow(AppError);
+    const result = await bookingPaymentManualService.confirmManualBookingPayment({
+      bookingPaymentId: bookingPayment._id.toString(),
+      userId: barbeiroUserId,
+      userTipo: "barbeiro",
+    });
 
-    try {
-      await bookingPaymentManualService.confirmManualBookingPayment({
-        bookingPaymentId: bookingPayment._id.toString(),
-        userId: barbeiroUserId,
-        userTipo: "barbeiro",
-      });
-    } catch (err) {
-      expect((err as AppError).statusCode).toBe(409);
-      expect((err as AppError).code).toBe("PAYMENT_UNDER_REVIEW");
-    }
+    expect(result.bookingPayment.status).toBe("paid");
   });
 
   // =====================================================
@@ -605,7 +594,7 @@ describe("BookingPaymentManual — Confirmação Manual (Phase D4)", () => {
   // 18. RESERVA STATUS PRINCIPAL MANTIDO (retrocompatibilidade)
   // =====================================================
 
-  it("deve manter Reserva.status como 'pendente' após confirmação (retrocompatibilidade)", async () => {
+  it("deve alterar Reserva.status para 'confirmado' após confirmação", async () => {
     const { bookingPayment } = await createPendingPaymentWithReserva();
 
     const result = await bookingPaymentManualService.confirmManualBookingPayment({
@@ -614,9 +603,9 @@ describe("BookingPaymentManual — Confirmação Manual (Phase D4)", () => {
       userTipo: "barbeiro",
     });
 
-    // paymentStatus deve ser paid, mas status principal mantido
+    // paymentStatus deve ser paid, e status principal atualizado
     expect(result.reserva.paymentStatus).toBe("paid");
-    expect(result.reserva.status).toBe("pendente");
+    expect(result.reserva.status).toBe("confirmado");
   });
 
   // =====================================================
@@ -720,12 +709,79 @@ describe("BookingPaymentManual — Confirmação Manual (Phase D4)", () => {
   // 23. NENHUM FRONTEND
   // =====================================================
 
-  it("confirmação manual é puramente backend — sem dependências de frontend", () => {
-    // Verifica que o módulo não importa nada de client/ ou componentes React
-    // Este é um teste de sanidade — o service é um module Node puro
-    const service = bookingPaymentManualService;
-    expect(service).toBeDefined();
-    expect(typeof service.confirmManualBookingPayment).toBe("function");
-    expect(typeof service.createManualBookingPayment).toBe("function");
+  // =====================================================
+  // 👥 Relação ao Cliente Declarar Pago (Já enviei o Pix)
+  // =====================================================
+
+  describe("Cliente declarar pagamento enviado (Já enviei o Pix)", () => {
+    it("deve transicionar status para manual_review quando cliente declara pago", async () => {
+      const { bookingPayment, reserva } = await createPendingPaymentWithReserva();
+
+      const result = await bookingPaymentManualService.reportManualBookingPayment({
+        bookingPaymentId: bookingPayment._id.toString(),
+        userId: clienteUserId,
+      });
+
+      expect(result.bookingPayment.status).toBe("manual_review");
+      expect(result.reserva.paymentStatus).toBe("manual_review");
+      expect(result.bookingPayment.metadataSafe).toHaveProperty("reportedAt");
+    });
+
+    it("deve rejeitar se o usuário não for o dono da reserva", async () => {
+      const { bookingPayment } = await createPendingPaymentWithReserva();
+
+      await expect(
+        bookingPaymentManualService.reportManualBookingPayment({
+          bookingPaymentId: bookingPayment._id.toString(),
+          userId: outroBarbeiroUserId, // não é dono
+        })
+      ).rejects.toMatchObject({ code: "OWNERSHIP_MISMATCH" });
+    });
+
+    it("deve rejeitar se o pagamento não estiver pending", async () => {
+      const { bookingPayment } = await createPendingPaymentWithReserva({
+        status: "paid",
+      });
+
+      await expect(
+        bookingPaymentManualService.reportManualBookingPayment({
+          bookingPaymentId: bookingPayment._id.toString(),
+          userId: clienteUserId,
+        })
+      ).rejects.toMatchObject({ code: "NOT_PENDING" });
+    });
+  });
+
+  describe("Confirmação e Expiração de pagamentos em manual_review", () => {
+    it("deve permitir ao barbeiro confirmar pagamento que está em manual_review", async () => {
+      const { bookingPayment } = await createPendingPaymentWithReserva({
+        status: "manual_review",
+      });
+
+      const result = await bookingPaymentManualService.confirmManualBookingPayment({
+        bookingPaymentId: bookingPayment._id.toString(),
+        userId: barbeiroUserId,
+        userTipo: "barbeiro",
+      });
+
+      expect(result.bookingPayment.status).toBe("paid");
+      expect(result.reserva.paymentStatus).toBe("paid");
+    });
+
+    it("deve permitir ao barbeiro expirar pagamento vencido que está em manual_review", async () => {
+      const { bookingPayment } = await createPendingPaymentWithReserva({
+        status: "manual_review",
+        expiresAt: new Date(Date.now() - 1000), // no passado
+      });
+
+      const result = await bookingPaymentManualService.expireOverdueManualBookingPayment({
+        bookingPaymentId: bookingPayment._id.toString(),
+        userId: barbeiroUserId,
+        userTipo: "barbeiro",
+      });
+
+      expect(result.bookingPayment.status).toBe("expired");
+      expect(result.reserva.paymentStatus).toBe("expired");
+    });
   });
 });

@@ -13,7 +13,7 @@ import {
   pagarReservaSimulado,
   getReservaById,
 } from "../controllers/reserva.controller";
-import { confirmarPagamentoManual, expirarPagamentoManual } from "../controllers/bookingPaymentManual.controller";
+import { confirmarPagamentoManual, expirarPagamentoManual, declararPagamentoManual } from "../controllers/bookingPaymentManual.controller";
 import generateSlots from "../utils/generateSlots";
 import rateLimit from "express-rate-limit";
 import { validateRequest } from "../middlewares/validateRequest";
@@ -51,12 +51,19 @@ router.patch(
   confirmarPagamentoManual
 );
 
-// 🔒 Expiração manual/administrativa de pagamento vencido (barbeiro/admin only)
+// 🔒 Expiração manual/administrative de pagamento vencido (barbeiro/admin only)
 router.patch(
   "/pagamento-manual/:bookingPaymentId/expirar",
   authMiddleware,
   validateRequest(expireManualPaymentSchema),
   expirarPagamentoManual
+);
+
+// 👥 Declaração manual de pagamento enviado (cliente only)
+router.patch(
+  "/pagamento-manual/:bookingPaymentId/declarar-pago",
+  authMiddleware,
+  declararPagamentoManual
 );
 
 // ⚠️ Pagamento simulado (dev)

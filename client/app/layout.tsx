@@ -12,8 +12,8 @@ export const metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR">
-      <body>
+    <html lang="pt-BR" suppressHydrationWarning>
+      <body suppressHydrationWarning>
         <AuthProvider>
           <Navbar />
           <main className="mx-auto max-w-3xl p-4">{children}</main>

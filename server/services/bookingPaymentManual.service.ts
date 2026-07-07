@@ -220,8 +220,8 @@ export class BookingPaymentManualService {
       );
     }
 
-    // 5. Status deve ser pending (bloquear todos os outros)
-    if (bookingPayment.status !== "pending") {
+    // 5. Status deve ser pending ou manual_review (bloquear todos os outros)
+    if (bookingPayment.status !== "pending" && bookingPayment.status !== "manual_review") {
       const codeMap: Record<string, string> = {
         paid: "ALREADY_PAID",
         expired: "PAYMENT_EXPIRED",
@@ -329,10 +329,8 @@ export class BookingPaymentManualService {
 
     // 11. Atualizar Reserva
     reserva.paymentStatus = "paid";
+    reserva.status = "confirmado"; // Efetiva o agendamento
     reserva.confirmedAt = now;
-    // Nota: status principal da Reserva mantido como "pendente" para retrocompatibilidade.
-    // A transição para "confirmado" será implementada em fase futura quando
-    // o fluxo completo estiver validado end-to-end.
 
     const updatedReserva = await reservaRepository.save(reserva);
 
@@ -400,8 +398,8 @@ export class BookingPaymentManualService {
       );
     }
 
-    // 4. Status deve ser pending
-    if (bookingPayment.status !== "pending") {
+    // 4. Status deve ser pending ou manual_review
+    if (bookingPayment.status !== "pending" && bookingPayment.status !== "manual_review") {
       const codeMap: Record<string, string> = {
         paid: "CANNOT_EXPIRE_PAID",
         expired: "ALREADY_EXPIRED",
@@ -510,8 +508,8 @@ export class BookingPaymentManualService {
 
     // 10. Atualizar Reserva
     reserva.paymentStatus = "expired";
-    // Nota: status principal da Reserva preservado (sem alteração indevida).
-    // A decisão sobre cancelamento automático da reserva será em fase futura.
+    reserva.status = "cancelado"; // Cancela o agendamento
+    reserva.cancelReason = "Pagamento Pix expirado por falta de recebimento";
 
     const updatedReserva = await reservaRepository.save(reserva);
 
@@ -590,8 +588,8 @@ export class BookingPaymentManualService {
       const hasExpired = p.expiresAt && p.expiresAt.getTime() < Date.now();
       const resObj = p.reservaId;
       const isReservaCancelled = resObj?.status === "cancelado";
-      const canConfirm = p.status === "pending" && !hasExpired && !isReservaCancelled;
-      const canExpire = p.status === "pending" && hasExpired && !isReservaCancelled;
+      const canConfirm = (p.status === "pending" || p.status === "manual_review") && !hasExpired && !isReservaCancelled;
+      const canExpire = (p.status === "pending" || p.status === "manual_review") && hasExpired && !isReservaCancelled;
 
       const resPresentation = resObj ? presentReservaStatus(resObj.status) : undefined;
 
@@ -648,6 +646,64 @@ export class BookingPaymentManualService {
         totalPages: Math.ceil(Math.max(0, adjustedTotal) / parsedLimit)
       }
     };
+  }
+
+  async reportManualBookingPayment(input: {
+    bookingPaymentId: string;
+    userId: string;
+  }): Promise<{ reserva: IReserva; bookingPayment: IBookingPayment }> {
+    const { bookingPaymentId, userId } = input;
+
+    // 1. Buscar BookingPayment
+    const bp = await BookingPayment.findById(bookingPaymentId);
+    if (!bp) {
+      throw new AppError("Pagamento não encontrado.", 404, "NOT_FOUND");
+    }
+
+    // 2. Garantir que o provider é manual
+    if (bp.provider !== "manual") {
+      throw new AppError("Este pagamento não é manual.", 400, "INVALID_PROVIDER");
+    }
+
+    // 3. Garantir status pendente
+    if (bp.status !== "pending") {
+      throw new AppError("Este pagamento não está pendente.", 400, "NOT_PENDING");
+    }
+
+    // 4. Buscar Reserva e verificar ownership
+    const reserva = await reservaRepository.findByIdRaw(bp.reservaId.toString());
+    if (!reserva) {
+      throw new AppError("Reserva associada não encontrada.", 404, "RESERVA_NOT_FOUND");
+    }
+
+    if (reserva.usuario.toString() !== userId) {
+      throw new AppError("Você não tem permissão para alterar este pagamento.", 403, "OWNERSHIP_MISMATCH");
+    }
+
+    // 5. Garantir que a reserva não esteja cancelada ou finalizada
+    if (reserva.status === "cancelado") {
+      throw new AppError("A reserva associada está cancelada.", 400, "RESERVA_CANCELLED");
+    }
+    if (reserva.status === "finalizado") {
+      throw new AppError("A reserva associada está finalizada.", 400, "RESERVA_FINALIZED");
+    }
+
+    // 6. Atualizar BookingPayment status para manual_review
+    bp.status = "manual_review";
+    if (!bp.metadataSafe) {
+      bp.metadataSafe = {};
+    }
+    bp.metadataSafe = {
+      ...(bp.metadataSafe as Record<string, unknown>),
+      reportedAt: new Date().toISOString(),
+    };
+    await bp.save();
+
+    // 7. Atualizar Reserva paymentStatus para manual_review
+    reserva.paymentStatus = "manual_review";
+    await reserva.save();
+
+    return { reserva, bookingPayment: bp };
   }
 }
 
