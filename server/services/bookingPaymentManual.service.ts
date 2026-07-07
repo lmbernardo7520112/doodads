@@ -586,7 +586,7 @@ export class BookingPaymentManualService {
       .limit(parsedLimit);
 
     // 7. Mapear para response seguro
-    const data = payments.map((p: any) => {
+    const allData = payments.map((p: any) => {
       const hasExpired = p.expiresAt && p.expiresAt.getTime() < Date.now();
       const resObj = p.reservaId;
       const isReservaCancelled = resObj?.status === "cancelado";
@@ -628,13 +628,24 @@ export class BookingPaymentManualService {
       };
     });
 
+    // 8. Post-populate filter: exclude cancelled-reserva items from "pending" view
+    // This prevents pre-migration orphan BookingPayments from polluting the Pendentes tab
+    const data = (status === "pending" || overdueOnly)
+      ? allData.filter((item) => !item.isReservaCancelled)
+      : allData;
+
+    // Adjust total for filtered results
+    const adjustedTotal = (status === "pending" || overdueOnly)
+      ? total - (allData.length - data.length)
+      : total;
+
     return {
       data,
       pagination: {
-        total,
+        total: Math.max(0, adjustedTotal),
         page: parsedPage,
         limit: parsedLimit,
-        totalPages: Math.ceil(total / parsedLimit)
+        totalPages: Math.ceil(Math.max(0, adjustedTotal) / parsedLimit)
       }
     };
   }

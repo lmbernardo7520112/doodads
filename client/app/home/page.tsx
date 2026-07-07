@@ -120,19 +120,25 @@ export default function HomePage() {
           AGENDAMENTOS
         </h2>
         <div className="grid gap-3">
-          {reservas.length === 0 ? (
-            <p className="text-sm text-gray-400 italic">
-              Nenhum agendamento encontrado.
-            </p>
-          ) : (
-            reservas.slice(0, 3).map((r: any) => (
+          {(() => {
+            const activeReservas = reservas.filter(
+              (r: any) => r.status !== "cancelado" && r.status !== "finalizado"
+            );
+            if (activeReservas.length === 0) {
+              return (
+                <p className="text-sm text-gray-400 italic">
+                  Nenhum agendamento ativo.
+                </p>
+              );
+            }
+            return activeReservas.slice(0, 3).map((r: any) => (
               <AppointmentCard
                 key={r._id}
                 reserva={r}
                 onUpdate={() => mutateReservas()}
               />
-            ))
-          )}
+            ));
+          })()}
         </div>
       </section>
 

@@ -37,7 +37,7 @@ function mockReserva(overrides: any = {}) {
     usuario: new mongoose.Types.ObjectId(),
     barbearia: new mongoose.Types.ObjectId(),
     servico: new mongoose.Types.ObjectId(),
-    dataHora: new Date(Date.now() + 3600000), // 1h in future
+    dataHora: new Date(Date.now() + 86400000), // 24h in future (avoids cancellation policy cutoff)
     status: "pendente",
     paymentStatus: "pending",
     paymentRequired: true,
