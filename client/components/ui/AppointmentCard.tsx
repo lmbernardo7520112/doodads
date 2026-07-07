@@ -253,11 +253,15 @@ export default function AppointmentCard({
   // =============================================================
   // 🎨 Render UI
   // =============================================================
-  // P0-B: Block cancel for paid/aprovado reservas
+  // E3.2: Reserva com horário já passado
+  const isPast = new Date(reserva.dataHora).getTime() < Date.now();
+
+  // P0-B + E3.2: Block cancel for paid/aprovado/past reservas
   const canCancel =
     reserva.status === "pendente" &&
     reserva.paymentStatus !== "paid" &&
-    reserva.paymentStatus !== "aprovado";
+    reserva.paymentStatus !== "aprovado" &&
+    !isPast;
 
   return (
     <>
@@ -314,8 +318,8 @@ export default function AppointmentCard({
             </div>
           )}
 
-        {/* P0-C: Instrução persistente de pagamento manual pendente */}
-        {isManualPaymentPending && (
+        {/* P0-C: Instrução persistente de pagamento manual pendente (oculta se passada) */}
+        {isManualPaymentPending && !isPast && (
           <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg border border-blue-200 bg-blue-50 text-xs text-blue-700 leading-relaxed">
             <Info className="w-4 h-4 mt-0.5 flex-shrink-0 text-blue-500" />
             <div>
@@ -333,6 +337,14 @@ export default function AppointmentCard({
                 O Doodads não processa pagamentos nem recebe valores.
               </p>
             </div>
+          </div>
+        )}
+
+        {/* E3.2: Badge "Horário já passou" para reservas passadas pendentes */}
+        {isPast && reserva.status === "pendente" && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 bg-gray-50 text-xs text-gray-500 font-medium">
+            <Clock className="w-3.5 h-3.5" />
+            Horário já passou
           </div>
         )}
 

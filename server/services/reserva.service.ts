@@ -236,6 +236,15 @@ export class ReservaService {
     const now = new Date();
     const diffMinutes = (new Date(reserva.dataHora).getTime() - now.getTime()) / 60000;
 
+    // E3.2: Reserva já ocorreu (passada) — erro distinto de TOO_LATE
+    if (diffMinutes < 0 && !isPrivileged) {
+      throw new AppError(
+        "Esta reserva já ocorreu e não pode ser cancelada.",
+        400,
+        "ALREADY_OCCURRED"
+      );
+    }
+
     if (diffMinutes < cutoffMinutes && !isPrivileged) {
       throw new AppError(`Cancelamento não permitido: só é possível cancelar até ${cutoffMinutes} minutos antes do horário.`, 400, "TOO_LATE");
     }

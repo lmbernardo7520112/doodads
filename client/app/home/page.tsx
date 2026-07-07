@@ -121,8 +121,12 @@ export default function HomePage() {
         </h2>
         <div className="grid gap-3">
           {(() => {
+            const now = Date.now();
             const activeReservas = reservas.filter(
-              (r: any) => r.status !== "cancelado" && r.status !== "finalizado"
+              (r: any) =>
+                r.status !== "cancelado" &&
+                r.status !== "finalizado" &&
+                new Date(r.dataHora).getTime() > now
             );
             if (activeReservas.length === 0) {
               return (
