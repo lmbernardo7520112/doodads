@@ -94,6 +94,12 @@ const PAYMENT_STATUS_MAP: Record<string, StatusPresentation> = {
     description: "Pagamento encaminhado para análise pela barbearia ou administrador.",
     tone: "warning",
   },
+  cancelled: {
+    code: "cancelled",
+    label: "Pagamento cancelado",
+    description: "Pagamento cancelado junto com a reserva.",
+    tone: "danger",
+  },
 };
 
 // =====================================================

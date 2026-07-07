@@ -265,7 +265,16 @@ export class BookingPaymentManualService {
       );
     }
 
-    // 8. Validar consistência Reserva ↔ BookingPayment
+    // 8. Bloquear confirmação de reserva cancelada (P0-C)
+    if (reserva.status === "cancelado") {
+      throw new AppError(
+        "Não é possível confirmar pagamento de uma reserva cancelada.",
+        409,
+        "RESERVA_CANCELLED"
+      );
+    }
+
+    // 9. Validar consistência Reserva ↔ BookingPayment
     if (!reserva.paymentRequired) {
       throw new AppError(
         "A reserva associada não requer pagamento.",
@@ -453,7 +462,16 @@ export class BookingPaymentManualService {
       );
     }
 
-    // 8. Validar consistência Reserva ↔ BookingPayment
+    // 8. Bloquear expiração de reserva cancelada (P0-C)
+    if (reserva.status === "cancelado") {
+      throw new AppError(
+        "Não é possível expirar pagamento de uma reserva cancelada.",
+        409,
+        "RESERVA_CANCELLED"
+      );
+    }
+
+    // 9. Validar consistência Reserva ↔ BookingPayment
     if (!reserva.paymentRequired) {
       throw new AppError(
         "A reserva associada não requer pagamento.",
@@ -570,10 +588,11 @@ export class BookingPaymentManualService {
     // 7. Mapear para response seguro
     const data = payments.map((p: any) => {
       const hasExpired = p.expiresAt && p.expiresAt.getTime() < Date.now();
-      const canConfirm = p.status === "pending" && !hasExpired;
-      const canExpire = p.status === "pending" && hasExpired;
-
       const resObj = p.reservaId;
+      const isReservaCancelled = resObj?.status === "cancelado";
+      const canConfirm = p.status === "pending" && !hasExpired && !isReservaCancelled;
+      const canExpire = p.status === "pending" && hasExpired && !isReservaCancelled;
+
       const resPresentation = resObj ? presentReservaStatus(resObj.status) : undefined;
 
       return {
@@ -591,6 +610,8 @@ export class BookingPaymentManualService {
         canExpire,
         paymentStatusPresentation: presentPaymentStatus(p.status),
         reservaStatusPresentation: resPresentation,
+        reservaStatus: resObj?.status || null,
+        isReservaCancelled,
         reserva: resObj ? {
           dataHora: resObj.dataHora,
           status: resObj.status,
