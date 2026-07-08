@@ -123,3 +123,8 @@ Resolver as inconsistências temporais e deficiências de UX relacionadas a rese
 ## Decisão
 
 **DECISÃO: PHASE E3.2 IMPLEMENTADA COM HARDENING DE RESERVAS PASSADAS. O BACKEND AGORA DIFERENCIA RESERVA JÁ OCORRIDA DE RESERVA FUTURA DENTRO DA JANELA DE CANCELAMENTO, O FRONTEND OCULTA CANCELAMENTO DE RESERVAS PASSADAS, EXIBE “HORÁRIO JÁ PASSOU”, ORGANIZA RESERVAS EM ATIVAS/PASSADAS/CANCELADAS/TODAS E NÃO AUTO-FINALIZA DADOS NO BANCO. NÃO HOUVE SCHEDULER, CRON, PIX REAL, QR, COPIA-E-COLA, WEBHOOK, PROVIDER, STRIPE, SPLIT OU CUSTÓDIA. TESTES, TYPESCRIPT, BUILD FRONTEND E AUDITORIAS PERMANECEM VERDES.**
+
+
+---
+
+> **Adendo Phase E3.3 (2026-07-07):** As correções desta fase foram estendidas na Phase E3.3 (Report 091), que incluiu: remoção da reserva fantasma do seed que aparecia com `paymentStatus: "paid"` instantâneo sem passar pelo fluxo manual, correção do seed para criar reservas em estado realista (`status: "pendente"`, `paymentStatus: "pending"`), remoção do endpoint legado `PATCH /:id/pagar` (`pagarReservaSimulado`) e de todo código morto associado (`canPay`, `FORBIDDEN_PAY`).

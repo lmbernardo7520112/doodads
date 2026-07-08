@@ -175,3 +175,8 @@ O modelo atual não possui estado intermediário seguro como `paymentReported` o
 ## Decisão
 
 **DECISÃO: PHASE E3 IMPLEMENTADA COM CORREÇÃO DE INTEGRIDADE DO FLUXO MANUAL PAYMENT. CANCELAMENTO AGORA PROPAGA ESTADO PARA BOOKINGPAYMENT QUANDO APLICÁVEL, RESERVAS PAGAS SÃO BLOQUEADAS PARA CANCELAMENTO SEM POLÍTICA PRÓPRIA, RESERVAS CANCELADAS NÃO PODEM SER CONFIRMADAS OU EXPIRADAS COMO PAGAMENTOS PENDENTES, PAINEL DO BARBEIRO EXIBE STATUS COERENTE, CLIENTE RECEBE INSTRUÇÃO PERSISTENTE DE PAGAMENTO MANUAL, WINDOW.CONFIRM FOI SUBSTITUÍDO POR MODAL CUSTOMIZADO, E O MVP MANUAL PAYMENT PERMANECE SEM PIX REAL, QR, COPIA-E-COLA, WEBHOOK, PROVIDER, STRIPE, SPLIT OU CUSTÓDIA. TESTES, TYPESCRIPT, BUILD FRONTEND E AUDITORIAS PERMANECEM VERDES.**
+
+
+---
+
+> **Adendo Phase E3.3 (2026-07-07):** O bloqueio de cancelamento para `paymentStatus: "aprovado"` permanece como proteção retrocompatível para dados legados persistidos antes da Phase E3.3. O endpoint simulado `PATCH /:id/pagar` (`pagarReservaSimulado`), que era o único gerador de `"aprovado"`, foi removido. O fluxo ativo não gera mais o valor `"aprovado"` por nenhum endpoint.

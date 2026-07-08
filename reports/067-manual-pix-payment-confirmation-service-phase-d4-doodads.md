@@ -196,3 +196,8 @@ npx tsc --noEmit → 0 erros
 ## 20. Decisão
 
 **DECISÃO: PHASE D4 IMPLEMENTADA COM SERVICE BACKEND-ONLY DE CONFIRMAÇÃO MANUAL DE PAGAMENTO, AUTORIZAÇÃO/OWNERSHIP, TRANSIÇÃO BOOKINGPAYMENT MANUAL PENDING → PAID E ATUALIZAÇÃO CONSISTENTE DE RESERVA, SEM FRONTEND, SEM ROTAS NOVAS, SEM PIX REAL, QR REAL, WEBHOOK OU PROVIDER REAL. TESTES (256), TYPESCRIPT E AUDITORIAS PERMANECEM VERDES.**
+
+
+---
+
+> **Adendo Phase E3.3 (2026-07-07):** O código de erro `ALREADY_PAID` referenciado neste report pertence ao fluxo manual governado de confirmação do BookingPayment (transição `paid → ALREADY_PAID`) e permanece válido e ativo. O endpoint legado de pagamento simulado `PATCH /:id/pagar` (`pagarReservaSimulado`), que usava um `ALREADY_PAID` diferente no contexto de Reserva, foi removido. O fluxo manual governado usa confirmação humana pelo barbeiro e códigos próprios do serviço BookingPaymentManual.

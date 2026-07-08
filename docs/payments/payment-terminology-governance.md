@@ -37,3 +37,4 @@ Este documento define o padrão semântico e as regras terminológicas para toda
 | Comprovante homologado | Declaração de envio do cliente | A declaração do cliente é declaratória e sem validação automatizada de autenticidade do Pix. |
 | Liquidação / Compensação | Confirmação manual pelo barbeiro | A liquidação ocorre de forma privada nos bancos e a alteração no app é puramente administrativa. |
 | Custódia / Split de Pagamento | Pagamento Direto ao Prestador | O Doodads opera sob tarifa/assinatura SaaS e não retém ou reparte o valor dos serviços. |
+| Pagamento Simulado / `pagarReservaSimulado` | *Removido (Phase E3.3)* | O endpoint legado que simulava pagamento com status `"aprovado"` foi removido. Não existe fluxo de simulação de pagamento no Doodads. Todo pagamento passa por confirmação humana pelo barbeiro. |

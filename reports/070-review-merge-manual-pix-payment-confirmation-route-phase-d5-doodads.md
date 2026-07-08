@@ -246,3 +246,8 @@ npx tsc --noEmit → 0 erros (pré-merge e pós-merge)
 ## 19. Decisão
 
 **DECISÃO: PR #21 REVISADO, MERGEADO E VALIDADO. ROTA/CONTROLLER BACKEND-ONLY PROTEGIDO PARA CONFIRMAÇÃO MANUAL DE PAGAMENTO FOI INTEGRADO COM AUTENTICAÇÃO, AUTORIZAÇÃO/OWNERSHIP, BLOQUEIO DE CLIENTE, PROTEÇÃO CONTRA MASS ASSIGNMENT E RESPONSE CONSERVADOR COM LABELS PT-BR, SEM FRONTEND, SEM PIX REAL, QR REAL, WEBHOOK OU PROVIDER REAL. TESTES (273 EM 16 SUÍTES), TYPESCRIPT E AUDITORIAS PERMANECEM VERDES.**
+
+
+---
+
+> **Adendo Phase E3.3 (2026-07-07):** O código de erro `ALREADY_PAID` referenciado neste report pertence ao fluxo manual governado de confirmação do BookingPayment (transição `paid → ALREADY_PAID`) e permanece válido e ativo. O endpoint legado de pagamento simulado `PATCH /:id/pagar` (`pagarReservaSimulado`), que usava um `ALREADY_PAID` diferente no contexto de Reserva, foi removido. O fluxo manual governado usa confirmação humana pelo barbeiro e códigos próprios do serviço BookingPaymentManual.
