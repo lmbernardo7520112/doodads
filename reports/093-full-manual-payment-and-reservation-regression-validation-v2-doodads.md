@@ -142,13 +142,11 @@ Validação funcional e regressiva completa da main após merge do PR #31 (E3.2 
 | Secrets no código | ✅ Clean (`.env` apenas local) |
 | Pix/Stripe indevidos | ✅ Apenas campos opcionais de modelo e comentários legados |
 
----
+## 13. Limitação da Validação e Limitações Remanescentes
 
-## 13. Limitações Remanescentes
-
-1. **BookingPolicy `requirePrepayment`**: Na barbearia de teste atual, `paymentRequired: false`. A criação de reserva com prepayment ativo (que gera `BookingPayment` com status `pending`) depende da configuração da barbearia. Os testes unitários cobrem esse cenário (35+ testes de BookingPayment).
-2. **Expiração de pagamento**: Depende de ação manual do barbeiro (sem scheduler/cron).
-3. **Upload de comprovante**: Não implementado.
+1. **Limitação de Prepayment durante a V2**: A reserva criada via API durante a V2 nasceu com `paymentRequired: false` (configuração padrão da barbearia de teste utilizada). Portanto, essa evidência específica da V2 não comprova a criação fresh de um `BookingPayment` manual pendente sob pré-pagamento obrigatório. A V2 valida com sucesso a regressão geral da main, a remoção do legado, as listagens/abas de reservas e o painel do barbeiro, mas uma futura validação específica de fluxo de pagamento ponta a ponta com pré-pagamento deve configurar explicitamente uma barbearia ou política com `requirePrepayment = true`. Os testes de integração e unitários cobrem e garantem a criação e transição do `BookingPayment` com prepayment ativo (35+ testes automatizados de BookingPayment na suíte).
+2. **Expiração de pagamento**: Depende de ação manual do barbeiro (sem scheduler/cron na main).
+3. **Upload de comprovante**: Não implementado na main.
 4. **Auto-finalização de reservas passadas**: Sem mutação automática no banco.
 5. **Valores legados `"aprovado"`, `"pendente"` (PT)**: Preservados no enum por retrocompatibilidade; não gerados por fluxo ativo.
 
