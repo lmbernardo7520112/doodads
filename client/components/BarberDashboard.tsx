@@ -123,14 +123,28 @@ export default function BarberDashboard() {
 
   // Ação: Confirmar recebimento (via modal)
   const handleConfirm = (p: any) => {
+    const isPendingWithoutDeclaration = p.status === "pending";
+
+    const modalTitle = isPendingWithoutDeclaration
+      ? "Confirmar Recebimento Pendente"
+      : "Confirmar Recebimento";
+
+    const modalMessage = isPendingWithoutDeclaration
+      ? `⚠️ ATENÇÃO: O cliente ainda não declarou o envio deste pagamento no aplicativo.\n\nConfirme o recebimento de R$ ${(p.amountCents / 100).toFixed(2)} apenas se o valor já estiver liquidado no extrato bancário da barbearia (ou pago presencialmente).\n\nDeseja confirmar o recebimento mesmo assim?`
+      : `⚠️ ATENÇÃO: Confirme apenas se o pagamento de R$ ${(p.amountCents / 100).toFixed(2)} foi recebido diretamente por fora do app.\n\nO Doodads não processa pagamentos nem recebe valores.\n\nDeseja confirmar o recebimento?`;
+
+    const modalConfirmLabel = isPendingWithoutDeclaration
+      ? "Sim, recebi o valor"
+      : "Confirmar recebimento";
+
+    const modalTone = isPendingWithoutDeclaration ? "warning" : "success";
+
     setConfirmModal({
       isOpen: true,
-      title: "Confirmar Recebimento",
-      message: `⚠️ ATENÇÃO: Confirme apenas se o pagamento de R$ ${(
-        p.amountCents / 100
-      ).toFixed(2)} foi recebido diretamente por fora do app.\n\nO Doodads não processa pagamentos nem recebe valores.\n\nDeseja confirmar o recebimento?`,
-      confirmLabel: "Confirmar recebimento",
-      tone: "success",
+      title: modalTitle,
+      message: modalMessage,
+      confirmLabel: modalConfirmLabel,
+      tone: modalTone,
       onConfirm: async () => {
         setConfirmModal((prev) => ({ ...prev, isOpen: false }));
         try {
