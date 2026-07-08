@@ -151,7 +151,14 @@ Para o primeiro caso (`6a4e33be31e57c6c721f0113`), cujo prazo expirou, o barbeir
 
 ---
 
-## 8. Gates e Auditorias
+## 8. Nota terminológica sobre 'Já enviei o Pix'
+
+Neste relatório, 'Já enviei o Pix' significa declaração manual do cliente de que realizou pagamento fora do aplicativo, diretamente à barbearia. Essa ação não confirma liquidação bancária, não aciona provider, não gera webhook e não marca o pagamento como `paid`; ela apenas move o fluxo para análise manual (`manual_review`) pelo barbeiro.
+Doodads não processa, recebe, custodia, divide ou repassa valor do serviço. Não existe Pix real integrado nesta fase, não existe QR real, não existe Pix copia-e-cola real, não existe webhook Pix e não existe provider financeiro ativo. Somente o barbeiro/funcionário confirma o recebimento e valida o saldo bancário externamente.
+
+---
+
+## 9. Gates e Auditorias
 
 - **Testes Backend**: ✅ 23 suítes, 355 testes passed.
 - **TypeScript**: ✅ 0 erros compilados.
@@ -160,6 +167,6 @@ Para o primeiro caso (`6a4e33be31e57c6c721f0113`), cujo prazo expirou, o barbeir
 
 ---
 
-## 9. Decisão
+## 10. Decisão
 
-**DECISÃO: PHASE V2.1 VALIDADA. FOI COMPROVADO, EM AMBIENTE LOCAL/SINTÉTICO, QUE UMA RESERVA FRESH EM BARBEARIA COM `requirePrepayment=true` GERA `BookingPayment pending` ASSOCIADO, MANTÉM O FLUXO MANUAL GOVERNADO, PERMITE CONFIRMAÇÃO HUMANA PELO BARBEIRO, NÃO USA PAGAMENTO SIMULADO LEGADO E NÃO INTRODUZ PIX REAL, PROVIDER, WEBHOOK, QR, STRIPE, SPLIT OU CUSTÓDIA. TESTES, TYPESCRIPT, BUILD FRONTEND E AUDITORIAS PERMANECERAM VERDES.**
+**DECISÃO: PR #34 REVISADO, MERGEADO E VALIDADO COMO RELATÓRIO DOCUMENTAL DA PHASE V2.1. FOI COMPROVADO QUE UMA RESERVA FRESH COM `requirePrepayment=true` GERA `BookingPayment pending`, PERMITE DECLARAÇÃO MANUAL DO CLIENTE PARA `manual_review`, CONFIRMAÇÃO HUMANA PELO BARBEIRO PARA `paid`, EXPIRAÇÃO/CANCELAMENTO GOVERNADOS E BLOQUEIOS CORRETOS. A TERMINOLOGIA FOI VALIDADA PARA NÃO CONFUNDIR DECLARAÇÃO MANUAL COM PIX REAL OU CONFIRMAÇÃO BANCÁRIA. NÃO HOUVE ALTERAÇÃO FUNCIONAL NEM PIX REAL.**
