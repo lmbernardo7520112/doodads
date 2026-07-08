@@ -190,9 +190,9 @@ describe("statusPresenter — Labels PT-BR (Phase D1.5)", () => {
   // =====================================================
 
   describe("Cobertura completa de status conhecidos", () => {
-    it("allPaymentStatuses retorna exatamente 10 status", () => {
+    it("allPaymentStatuses retorna exatamente 11 status", () => {
       const all = allPaymentStatuses();
-      expect(all).toHaveLength(10);
+      expect(all).toHaveLength(11);
     });
 
     it("allReservaStatuses retorna exatamente 4 status", () => {

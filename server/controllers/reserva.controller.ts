@@ -20,11 +20,9 @@ const mapError = (res: Response, error: any, defaultMsg: string) => {
   if (msg === "BARBEARIA_NOT_FOUND") return res.status(404).json({ message: "Barbearia não encontrada." });
   if (msg === "FORBIDDEN") return res.status(403).json({ message: "Acesso negado à reserva." });
   if (msg === "FORBIDDEN_CANCEL") return res.status(403).json({ message: "Você não pode cancelar esta reserva." });
-  if (msg === "FORBIDDEN_PAY") return res.status(403).json({ message: "Você não pode pagar por esta reserva." });
   if (msg === "INVALID_DATE") return res.status(400).json({ message: "Data inválida." });
   if (msg === "CONFLICT") return res.status(409).json({ message: "Horário já reservado." });
   if (msg === "ALREADY_CANCELLED") return res.status(400).json({ message: "Esta reserva já está cancelada." });
-  if (msg === "ALREADY_PAID") return res.status(400).json({ message: "Pagamento já aprovado." });
   if (msg === "TOO_LATE") {
     const cutoffMinutes = Number(process.env.CANCEL_CUTOFF_MINUTES || "60");
     return res.status(400).json({ message: `Cancelamento não permitido: só é possível cancelar até ${cutoffMinutes} minutos antes do horário.` });
@@ -121,14 +119,3 @@ export const cancelarReserva = async (req: Request, res: Response) => {
   }
 };
 
-export const pagarReservaSimulado = async (req: Request, res: Response) => {
-  try {
-    const { id: usuarioId } = getUserInfo(req);
-    if (!usuarioId) return res.status(401).json({ message: "Não autorizado." });
-
-    const reserva = await reservaService.pagarReservaSimulado(req.params.id, usuarioId);
-    return res.json({ message: "Pagamento simulado aprovado!", reserva });
-  } catch (error) {
-    return mapError(res, error, "Erro ao simular pagamento.");
-  }
-};

@@ -18,7 +18,7 @@ import mongoose, { Schema, Document, Types } from "mongoose";
  * Novas reservas com manual_pix usarão os valores em inglês.
  */
 type PaymentStatusLegacy = "pendente" | "aprovado" | "falhou";
-type PaymentStatusNew = "not_required" | "pending" | "paid" | "expired" | "refunded" | "failed" | "manual_review";
+type PaymentStatusNew = "not_required" | "pending" | "paid" | "expired" | "refunded" | "failed" | "manual_review" | "cancelled";
 type PaymentStatus = PaymentStatusLegacy | PaymentStatusNew;
 
 export interface IReserva extends Document {
@@ -79,7 +79,7 @@ const ReservaSchema = new Schema<IReserva>(
         // Legado (retrocompatibilidade)
         "pendente", "aprovado", "falhou",
         // Novo (manual_pix D1)
-        "not_required", "pending", "paid", "expired", "refunded", "failed", "manual_review",
+        "not_required", "pending", "paid", "expired", "refunded", "failed", "manual_review", "cancelled",
       ],
       default: "pendente",
     },

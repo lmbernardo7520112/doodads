@@ -1,6 +1,7 @@
 import { reservaRepository } from "../repositories/reserva.repository";
 import { reservaPolicy } from "../policies/reserva.policy";
 import { AppError } from "../errors/AppError";
+import { bookingPaymentRepository } from "../repositories/bookingPayment.repository";
 import { termsAcceptanceService, CreateTermsAcceptanceInput } from "./termsAcceptance.service";
 import { termsVersionRepository } from "../repositories/termsVersion.repository";
 import { bookingPolicyService } from "./bookingPolicy.service";
@@ -217,6 +218,15 @@ export class ReservaService {
       throw new AppError("Esta reserva já foi finalizada e não pode ser cancelada.", 400, "ALREADY_FINALIZED");
     }
 
+    // P0-B: Bloquear cancelamento de reserva com pagamento confirmado (novo enum + legado)
+    if (reserva.paymentStatus === "paid") {
+      throw new AppError(
+        "Reserva com pagamento confirmado não pode ser cancelada. Entre em contato com o suporte.",
+        400,
+        "ALREADY_PAID_CANCEL"
+      );
+    }
+
     if (reserva.paymentStatus === "aprovado") {
       throw new AppError("Reserva já paga, contate o suporte para cancelar.", 400, "ALREADY_PAID_CANCEL");
     }
@@ -226,39 +236,49 @@ export class ReservaService {
     const now = new Date();
     const diffMinutes = (new Date(reserva.dataHora).getTime() - now.getTime()) / 60000;
 
+    // E3.2: Reserva já ocorreu (passada) — erro distinto de TOO_LATE
+    if (diffMinutes < 0 && !isPrivileged) {
+      throw new AppError(
+        "Esta reserva já ocorreu e não pode ser cancelada.",
+        400,
+        "ALREADY_OCCURRED"
+      );
+    }
+
     if (diffMinutes < cutoffMinutes && !isPrivileged) {
       throw new AppError(`Cancelamento não permitido: só é possível cancelar até ${cutoffMinutes} minutos antes do horário.`, 400, "TOO_LATE");
     }
 
+    // P0-A: Propagar cancelamento para BookingPayment associado (se existir e estiver pending)
+    if (reserva.bookingPaymentId) {
+      const bookingPayment = await bookingPaymentRepository.findById(
+        reserva.bookingPaymentId.toString()
+      );
+      if (bookingPayment && bookingPayment.status === "pending") {
+        await bookingPaymentRepository.updateStatus(
+          bookingPayment._id.toString(),
+          "cancelled",
+          {
+            metadataSafe: {
+              ...bookingPayment.metadataSafe as Record<string, unknown>,
+              cancelledAt: now.toISOString(),
+              cancelledBy: usuarioId,
+              cancelledByTipo: usuarioTipo,
+              cancelReason: reason?.trim() || "Reserva cancelada pelo usuário.",
+            },
+          }
+        );
+      }
+      // Atualizar paymentStatus da reserva para refletir o cancelamento
+      reserva.paymentStatus = "cancelled";
+    }
+
     reserva.status = "cancelado";
-    reserva.canceladoEm = new Date();
+    reserva.canceladoEm = now;
+    reserva.cancelledAt = now;
     if (reason && reason.trim().length > 0) {
       reserva.cancelReason = reason.trim();
     }
-
-    return reservaRepository.save(reserva);
-  }
-
-  async pagarReservaSimulado(id: string, usuarioId: string) {
-    const reserva = await reservaRepository.findById(id);
-    if (!reserva) throw new AppError("Reserva não encontrada.", 404, "NOT_FOUND");
-
-    if (!reservaPolicy.canPay(usuarioId, reserva)) {
-      throw new AppError("Você não pode pagar por esta reserva.", 403, "FORBIDDEN_PAY");
-    }
-
-    if (reserva.status === "cancelado") {
-      throw new AppError("Esta reserva já está cancelada.", 400, "ALREADY_CANCELLED");
-    }
-
-    if (reserva.paymentStatus === "aprovado") {
-      throw new AppError("Pagamento já aprovado.", 400, "ALREADY_PAID");
-    }
-
-    reserva.paymentStatus = "aprovado";
-    reserva.status = "confirmado";
-    reserva.confirmadoEm = new Date();
-    reserva.paymentId = "simulated-payment-" + reserva._id;
 
     return reservaRepository.save(reserva);
   }

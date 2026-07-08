@@ -136,3 +136,8 @@ Nenhuma correção necessária.
 ## 12. Decisão
 
 **DECISÃO: PR #16 REVISADO, MERGEADO E VALIDADO. CAMPOS OPCIONAIS E RETROCOMPATÍVEIS DE PAGAMENTO/ACEITE EM RESERVA FORAM INTEGRADOS SEM ATIVAÇÃO FUNCIONAL DE MANUAL_PIX. PAYMENTSTATUS COM VALORES LEGADOS EM PORTUGUÊS E NOVOS VALORES TÉCNICOS EM INGLÊS FOI ACEITO COMO COMPROMISSO DE RETROCOMPATIBILIDADE, COM DECISÃO FORMAL DE QUE ENUMS INTERNOS NÃO DEVEM SER EXIBIDOS CRUS AO USUÁRIO E DEVEM PASSAR POR MAPPER/PRESENTER EM PORTUGUÊS ANTES DE QUALQUER UI/API PÚBLICA DE PAGAMENTO. TESTES, TYPESCRIPT E AUDITORIAS PERMANECEM VERDES.**
+
+
+---
+
+> **Adendo Phase E3.3 (2026-07-07):** O endpoint legado `PATCH /:id/pagar` (`pagarReservaSimulado`), que era o único gerador do valor `paymentStatus: "aprovado"`, foi removido. O valor `"aprovado"` permanece no enum do modelo `Reserva` exclusivamente para retrocompatibilidade de dados persistidos anteriormente, mas não é mais gerado por nenhum endpoint ativo. Todo fluxo de pagamento ativo utiliza `"paid"` via confirmação manual pelo barbeiro.

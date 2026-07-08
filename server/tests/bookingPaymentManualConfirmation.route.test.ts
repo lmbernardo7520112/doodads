@@ -462,7 +462,7 @@ describe("Confirmação Manual de Pagamento — Rotas (Phase D5)", () => {
   // 15. RESERVA.STATUS MANTIDO (retrocompatibilidade)
   // =====================================================
 
-  it("Reserva.status permanece 'pendente' após confirmação (retrocompatibilidade)", async () => {
+  it("Reserva.status é atualizado para 'confirmado' após confirmação", async () => {
     const { bookingPayment } = await createPendingPaymentWithReserva();
 
     const res = await request(app)
@@ -471,7 +471,7 @@ describe("Confirmação Manual de Pagamento — Rotas (Phase D5)", () => {
       .send({});
 
     expect(res.status).toBe(200);
-    expect(res.body.reserva.status).toBe("pendente");
+    expect(res.body.reserva.status).toBe("confirmado");
     expect(res.body.reserva.paymentStatus).toBe("paid");
   });
 });

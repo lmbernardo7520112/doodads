@@ -1,8 +1,9 @@
 // =============================================================
 // 📅 components/ui/AppointmentCard.tsx
 // -------------------------------------------------------------
-// Card de agendamento com suporte a status de pagamento manual
-// e ações de cancelamento integradas.
+// Card de agendamento com suporte a status de pagamento manual,
+// instrução persistente de pagamento, e modal de cancelamento.
+// Phase E3: Corrigido fluxo do cliente + window.confirm removido.
 // =============================================================
 
 "use client";
@@ -17,11 +18,14 @@ import {
   Ban,
   Eye,
   Loader2,
+  Info,
+  Coins,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { useState } from "react";
+import ConfirmModal from "./ConfirmModal";
 
 interface AppointmentCardProps {
   reserva: {
@@ -38,8 +42,10 @@ interface AppointmentCardProps {
       | "expired"
       | "refunded"
       | "failed"
-      | "manual_review";
+      | "manual_review"
+      | "cancelled";
     paymentRequired?: boolean;
+    bookingPaymentId?: string;
     paymentExpiresAt?: string;
     cancelReason?: string;
     barbearia?: {
@@ -70,8 +76,8 @@ const PAYMENT_STATUS_MAP: Record<
     icon: <Clock className="w-3.5 h-3.5" />,
   },
   pending: {
-    label: "Aguardando pagamento Pix",
-    description: "Realize o pagamento via Pix à barbearia.",
+    label: "Aguardando pagamento manual",
+    description: "Realize o pagamento diretamente à barbearia.",
     tone: "text-amber-600 bg-amber-50 border-amber-200",
     icon: <Clock className="w-3.5 h-3.5" />,
   },
@@ -123,6 +129,12 @@ const PAYMENT_STATUS_MAP: Record<
     tone: "text-gray-500 bg-gray-50 border-gray-200",
     icon: <CheckCircle className="w-3.5 h-3.5" />,
   },
+  cancelled: {
+    label: "Pagamento cancelado",
+    description: "Pagamento cancelado junto com a reserva.",
+    tone: "text-red-600 bg-red-50 border-red-200",
+    icon: <XCircle className="w-3.5 h-3.5" />,
+  },
 };
 
 export default function AppointmentCard({
@@ -131,6 +143,9 @@ export default function AppointmentCard({
 }: AppointmentCardProps) {
   const { token } = useAuth();
   const [cancelling, setCancelling] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [reportingPayment, setReportingPayment] = useState(false);
+  const [showReportPaymentModal, setShowReportPaymentModal] = useState(false);
 
   const data = new Date(reserva.dataHora).toLocaleString("pt-BR", {
     day: "2-digit",
@@ -204,25 +219,27 @@ export default function AppointmentCard({
     ? Math.max(0, Math.round((paymentExpiresAt!.getTime() - Date.now()) / 60000))
     : null;
 
+  // P0-C: Verifica se o pagamento manual está pendente e a reserva está ativa
+  const isManualPaymentPending =
+    reserva.paymentRequired &&
+    (reserva.paymentStatus === "pending" || reserva.paymentStatus === "pendente") &&
+    reserva.status !== "cancelado";
+
   // =============================================================
-  // ❌ Cancelar reserva
+  // ❌ Cancelar reserva (via modal)
   // =============================================================
-  const handleCancelar = async () => {
+  const handleCancelConfirm = async (reason?: string) => {
     if (!token) {
       toast.error("Você precisa estar autenticado.");
       return;
     }
 
-    const confirmed = window.confirm(
-      "Tem certeza que deseja cancelar esta reserva?"
-    );
-    if (!confirmed) return;
-
     try {
       setCancelling(true);
+      setShowCancelModal(false);
       await api.patch(
         `/reservas/${reserva._id}/cancelar`,
-        {},
+        { reason: reason || "" },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       toast.success("Reserva cancelada com sucesso!");
@@ -238,88 +255,213 @@ export default function AppointmentCard({
   };
 
   // =============================================================
+  // 👥 Declarar Pix enviado (Já enviei o Pix)
+  // =============================================================
+  const handleReportPaymentConfirm = async () => {
+    if (!token) {
+      toast.error("Você precisa estar autenticado.");
+      return;
+    }
+
+    if (!reserva.bookingPaymentId) {
+      toast.error("Identificador do pagamento não disponível.");
+      return;
+    }
+
+    try {
+      setReportingPayment(true);
+      setShowReportPaymentModal(false);
+      await api.patch(
+        `/reservas/pagamento-manual/${reserva.bookingPaymentId}/declarar-pago`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      toast.success("Pagamento declarado com sucesso! Aguardando confirmação do estabelecimento.");
+      onUpdate?.();
+    } catch (err: any) {
+      console.error("❌ Erro ao declarar pagamento:", err);
+      const msg =
+        err?.response?.data?.message || "Erro ao declarar pagamento.";
+      toast.error(msg);
+    } finally {
+      setReportingPayment(false);
+    }
+  };
+
+  // =============================================================
   // 🎨 Render UI
   // =============================================================
-  const canCancel = reserva.status === "pendente";
+  // E3.2: Reserva com horário já passado
+  const isPast = new Date(reserva.dataHora).getTime() < Date.now();
+
+  // P0-B + E3.2: Block cancel for paid/aprovado/past reservas
+  const canCancel =
+    reserva.status === "pendente" &&
+    reserva.paymentStatus !== "paid" &&
+    reserva.paymentStatus !== "aprovado" &&
+    !isPast;
 
   return (
-    <div className="flex flex-col gap-3 bg-white rounded-xl shadow-sm p-3 hover:shadow-md transition">
-      {/* Linha superior */}
-      <div className="flex gap-3 items-center">
-        <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg">
-          <Image
-            src={imagemSrc}
-            alt={`Imagem da barbearia ${reserva.barbearia?.nome ?? ""}`}
-            fill
-            className="object-cover"
-            sizes="100vw"
-          />
+    <>
+      <div className="flex flex-col gap-3 bg-white rounded-xl shadow-sm p-3 hover:shadow-md transition">
+        {/* Linha superior */}
+        <div className="flex gap-3 items-center">
+          <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg">
+            <Image
+              src={imagemSrc}
+              alt={`Imagem da barbearia ${reserva.barbearia?.nome ?? ""}`}
+              fill
+              className="object-cover"
+              sizes="100vw"
+            />
+          </div>
+
+          <div className="flex flex-col justify-center flex-1">
+            <h3 className="font-semibold text-gray-900 truncate">
+              {reserva.barbearia?.nome ?? "Barbearia não identificada"}
+            </h3>
+
+            <p className="text-sm text-gray-600 truncate">
+              {reserva.servico?.nome ?? "Serviço"} — 💰 R${" "}
+              {reserva.servico?.preco?.toFixed(2) ?? "0,00"}
+            </p>
+
+            <p className="text-xs text-gray-500">{data}</p>
+
+            <p
+              className={`flex items-center gap-1 text-xs font-medium ${color}`}
+            >
+              {icon}
+              {label}
+            </p>
+          </div>
         </div>
 
-        <div className="flex flex-col justify-center flex-1">
-          <h3 className="font-semibold text-gray-900 truncate">
-            {reserva.barbearia?.nome ?? "Barbearia não identificada"}
-          </h3>
+        {/* Status de pagamento */}
+        {paymentInfo &&
+          reserva.paymentStatus !== "not_required" &&
+          reserva.paymentStatus !== "pendente" && (
+            <div
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium ${paymentInfo.tone}`}
+            >
+              {paymentInfo.icon}
+              <div>
+                <span>{paymentInfo.label}</span>
+                {isPaymentExpiring && expiresInMinutes !== null && (
+                  <span className="ml-2 opacity-80">
+                    · ⏳ {expiresInMinutes} min restantes
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
 
-          <p className="text-sm text-gray-600 truncate">
-            {reserva.servico?.nome ?? "Serviço"} — 💰 R${" "}
-            {reserva.servico?.preco?.toFixed(2) ?? "0,00"}
-          </p>
-
-          <p className="text-xs text-gray-500">{data}</p>
-
-          <p
-            className={`flex items-center gap-1 text-xs font-medium ${color}`}
-          >
-            {icon}
-            {label}
-          </p>
-        </div>
-      </div>
-
-      {/* Status de pagamento */}
-      {paymentInfo &&
-        reserva.paymentStatus !== "not_required" &&
-        reserva.paymentStatus !== "pendente" && (
-          <div
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium ${paymentInfo.tone}`}
-          >
-            {paymentInfo.icon}
-            <div>
-              <span>{paymentInfo.label}</span>
-              {isPaymentExpiring && expiresInMinutes !== null && (
-                <span className="ml-2 opacity-80">
-                  · ⏳ {expiresInMinutes} min restantes
-                </span>
+        {/* P0-C: Instrução persistente de pagamento manual pendente (oculta se passada) */}
+        {isManualPaymentPending && !isPast && (
+          <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg border border-blue-200 bg-blue-50 text-xs text-blue-700 leading-relaxed">
+            <Info className="w-4 h-4 mt-0.5 flex-shrink-0 text-blue-500" />
+            <div className="w-full">
+              <p className="font-semibold">Pagamento manual pendente</p>
+              <p className="mt-1">
+                Realize o pagamento por fora via Pix e confirme abaixo:
+              </p>
+              <div className="mt-2 p-2 bg-blue-100/50 rounded border border-blue-200/50 space-y-1 font-mono text-[11px]">
+                <p><strong>Chave Pix (E-mail):</strong> pix@{reserva.barbearia?.nome?.toLowerCase().replace(/[^a-z0-9]/g, "") || "doodads"}.com.br</p>
+                <p><strong>Favorecido:</strong> {reserva.barbearia?.nome || "Barbearia"}</p>
+                <p><strong>Valor:</strong> R$ {reserva.servico?.preco?.toFixed(2) || "0,00"}</p>
+              </div>
+              {reserva.barbearia?.telefone1 && (
+                <p className="mt-1.5 font-medium">
+                  📞 Contato: {reserva.barbearia.telefone1}
+                </p>
               )}
+              <p className="mt-1 opacity-75 text-[10px]">
+                O Doodads não processa pagamentos nem recebe valores.
+              </p>
             </div>
           </div>
         )}
 
-      {/* Motivo do cancelamento */}
-      {reserva.status === "cancelado" && reserva.cancelReason && (
-        <div className="flex items-start gap-2 px-3 py-2 rounded-lg border border-red-200 bg-red-50 text-xs text-red-600">
-          <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
-          <span>Motivo: {reserva.cancelReason}</span>
-        </div>
-      )}
+        {/* E3.2: Badge "Horário já passou" para reservas passadas pendentes */}
+        {isPast && reserva.status === "pendente" && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 bg-gray-50 text-xs text-gray-500 font-medium">
+            <Clock className="w-3.5 h-3.5" />
+            Horário já passou
+          </div>
+        )}
 
-      {/* Botão cancelar */}
-      {canCancel && (
-        <button
-          id={`cancel-reserva-${reserva._id}`}
-          onClick={handleCancelar}
-          disabled={cancelling}
-          className="w-full flex items-center justify-center gap-2 text-red-600 bg-red-50 border border-red-200 rounded-lg py-2 text-sm font-medium hover:bg-red-100 disabled:opacity-50 transition"
-        >
-          {cancelling ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Ban className="w-4 h-4" />
+        {/* Motivo do cancelamento */}
+        {reserva.status === "cancelado" && reserva.cancelReason && (
+          <div className="flex items-start gap-2 px-3 py-2 rounded-lg border border-red-200 bg-red-50 text-xs text-red-600">
+            <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+            <span>Motivo: {reserva.cancelReason}</span>
+          </div>
+        )}
+
+        {/* Botões de Ações */}
+        <div className="flex flex-col gap-2">
+          {/* Já enviei o Pix */}
+          {isManualPaymentPending && !isPast && (
+            <button
+              id={`report-payment-${reserva._id}`}
+              onClick={() => setShowReportPaymentModal(true)}
+              disabled={reportingPayment}
+              className="w-full flex items-center justify-center gap-2 text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg py-2 text-sm font-semibold disabled:opacity-50 transition"
+            >
+              {reportingPayment ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Coins className="w-4 h-4" />
+              )}
+              {reportingPayment ? "Declarando..." : "Já enviei o Pix"}
+            </button>
           )}
-          {cancelling ? "Cancelando..." : "Cancelar Reserva"}
-        </button>
-      )}
-    </div>
+
+          {/* Botão cancelar */}
+          {canCancel && (
+            <button
+              id={`cancel-reserva-${reserva._id}`}
+              onClick={() => setShowCancelModal(true)}
+              disabled={cancelling}
+              className="w-full flex items-center justify-center gap-2 text-red-600 bg-red-50 border border-red-200 rounded-lg py-2 text-sm font-medium hover:bg-red-100 disabled:opacity-50 transition"
+            >
+              {cancelling ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Ban className="w-4 h-4" />
+              )}
+              {cancelling ? "Cancelando..." : "Cancelar Reserva"}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Modal de cancelamento */}
+      <ConfirmModal
+        isOpen={showCancelModal}
+        title="Cancelar Reserva"
+        message={`Tem certeza que deseja cancelar a reserva de "${reserva.servico?.nome || "Serviço"}" em ${reserva.barbearia?.nome || "barbearia"}?\n\nEsta ação não pode ser desfeita.`}
+        confirmLabel="Cancelar Reserva"
+        cancelLabel="Voltar"
+        tone="danger"
+        showReasonField={true}
+        reasonPlaceholder="Motivo do cancelamento (opcional)..."
+        onConfirm={handleCancelConfirm}
+        onCancel={() => setShowCancelModal(false)}
+      />
+
+      {/* Modal de declaração de pagamento */}
+      <ConfirmModal
+        isOpen={showReportPaymentModal}
+        title="Declarar Envio de Pix"
+        message={`Você confirma que realizou o pagamento de R$ ${reserva.servico?.preco?.toFixed(2) || "0,00"} via Pix por fora do aplicativo para ${reserva.barbearia?.nome || "a barbearia"}?\n\nO estabelecimento irá validar o recebimento do valor em conta bancária antes de confirmar seu agendamento.`}
+        confirmLabel="Confirmar envio"
+        cancelLabel="Voltar"
+        tone="success"
+        showReasonField={false}
+        onConfirm={handleReportPaymentConfirm}
+        onCancel={() => setShowReportPaymentModal(false)}
+      />
+    </>
   );
 }

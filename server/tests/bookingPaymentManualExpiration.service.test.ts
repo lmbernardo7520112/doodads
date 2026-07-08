@@ -163,7 +163,7 @@ describe("Expiração Controlada de BookingPayment Manual (Phase D6)", () => {
   // 3. STATUS PRINCIPAL DA RESERVA PRESERVADO
   // =====================================================
 
-  it("preserva Reserva.status principal como 'pendente' (sem alteração indevida)", async () => {
+  it("atualiza Reserva.status principal como 'cancelado' após expiração", async () => {
     const { bookingPayment } = await createPendingPaymentWithReserva();
 
     const result = await bookingPaymentManualService.expireOverdueManualBookingPayment({
@@ -172,7 +172,7 @@ describe("Expiração Controlada de BookingPayment Manual (Phase D6)", () => {
       userTipo: "barbeiro",
     });
 
-    expect(result.reserva.status).toBe("pendente");
+    expect(result.reserva.status).toBe("cancelado");
   });
 
   // =====================================================
@@ -285,19 +285,19 @@ describe("Expiração Controlada de BookingPayment Manual (Phase D6)", () => {
   // 9. MANUAL_REVIEW NÃO EXPIRA
   // =====================================================
 
-  it("pagamento manual_review não pode ser expirado — CANNOT_EXPIRE_MANUAL_REVIEW (409)", async () => {
-    const { bookingPayment } = await createPendingPaymentWithReserva({ bpStatus: "manual_review" });
+  it("pagamento manual_review pode ser expirado se vencido", async () => {
+    const { bookingPayment } = await createPendingPaymentWithReserva({
+      bpStatus: "manual_review",
+      expiresAt: new Date(Date.now() - 1000), // no passado (vencido)
+    });
 
-    try {
-      await bookingPaymentManualService.expireOverdueManualBookingPayment({
-        bookingPaymentId: bookingPayment._id.toString(),
+    const result = await bookingPaymentManualService.expireOverdueManualBookingPayment({
+      bookingPaymentId: bookingPayment._id.toString(),
       userId: barbeiroUserId,
       userTipo: "barbeiro",
-      });
-      fail("Deveria ter lançado erro");
-    } catch (error) {
-      expect((error as AppError).code).toBe("CANNOT_EXPIRE_MANUAL_REVIEW");
-    }
+    });
+
+    expect(result.bookingPayment.status).toBe("expired");
   });
 
   // =====================================================

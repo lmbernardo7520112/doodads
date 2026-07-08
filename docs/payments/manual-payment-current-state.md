@@ -21,7 +21,7 @@ O fluxo manual implementado destina-se a segurar o horário do agendamento por t
    * Favorecido (Razão social/nome da barbearia);
    * Valor nominal exato.
 3. O cliente realiza a transferência Pix por meio do aplicativo de seu próprio banco.
-4. **Nota de Estado:** Na branch estável atual (`main`), o cliente **não** possui interface ativa ou botão para marcar "Já enviei o Pix" ou enviar comprovantes. O status permanece como `"pending"` na tela até a ação administrativa.
+4. **Após transferir**, o cliente pode clicar no botão **"Já enviei o Pix"** no card do agendamento. Isso altera o status do pagamento para `"manual_review"`, sinalizando ao barbeiro que o pagamento foi enviado e aguarda verificação de saldo.
 
 ### B. Papel do Barbeiro / Funcionário:
 1. O funcionário acessa o **Painel Operacional** (`BarberDashboard`).
@@ -42,9 +42,9 @@ O fluxo manual implementado destina-se a segurar o horário do agendamento por t
 
 ### Estados do Pagamento (`BookingPayment.status`):
 * `pending`: Pagamento aguardando verificação.
+* `manual_review`: Pagamento declarado como enviado pelo cliente; aguardando verificação de saldo pelo barbeiro.
 * `paid`: Pagamento verificado e confirmado pelo barbeiro.
 * `expired`: Pagamento não efetuado ou rejeitado administrativamente.
-* `manual_review`: Estado reservado para análise (sem transição ativa na interface da `main`).
 * `cancelled` / `refunded` / `failed`: Estados sistêmicos legados ou para fluxos especiais.
 
 ---
@@ -55,3 +55,10 @@ O fluxo manual implementado destina-se a segurar o horário do agendamento por t
 2. **Sem Webhooks**: Não há recebimento de notificações automáticas de pagamento de qualquer adquirente.
 3. **Sem Expiração Automatizada**: Não há serviços de scheduler (Cron, RabbitMQ, BullMQ, etc.) rodando em segundo plano para cancelar reservas pendentes automaticamente. Toda a alteração para `"expired"` ou cancelamento por atraso depende da ação do barbeiro ou de disparos acionados por requisições de controllers existentes.
 4. **Sem Upload de Comprovante**: A interface de usuário não aceita arquivos ou dados adicionais sobre a transação.
+
+---
+
+## 5. Código Legado Removido (Phase E3.3)
+
+> **Adendo E3.3 (2026-07-07):** O endpoint legado `PATCH /api/reservas/:id/pagar` (`pagarReservaSimulado`), que simulava pagamento e definia `paymentStatus: "aprovado"`, foi **removido** por usar status inconsistente com o fluxo manual governado. O valor `"aprovado"` permanece no enum do modelo por retrocompatibilidade de dados antigos, mas não é gerado por nenhum endpoint ativo. Todo pagamento ativo passa pelo fluxo manual com confirmação humana pelo barbeiro via `BookingPaymentManual`.
+

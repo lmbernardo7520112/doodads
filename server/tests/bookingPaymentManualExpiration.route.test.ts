@@ -300,16 +300,19 @@ describe("Expiração Manual de Pagamento — Rotas (Phase D7)", () => {
   // 8. PAGAMENTO MANUAL_REVIEW NÃO EXPIRA
   // =====================================================
 
-  it("pagamento manual_review retorna 409 CANNOT_EXPIRE_MANUAL_REVIEW", async () => {
-    const { bookingPayment } = await createPendingPaymentWithReserva({ status: "manual_review" });
+  it("pagamento manual_review pode ser expirado se vencido", async () => {
+    const { bookingPayment } = await createPendingPaymentWithReserva({
+      status: "manual_review",
+      expiresAt: new Date(Date.now() - 1000), // no passado (vencido)
+    });
 
     const res = await request(app)
       .patch(`${ROUTE_PREFIX}/${bookingPayment._id}/expirar`)
       .set("Authorization", `Bearer ${barbeiroToken}`)
       .send({});
 
-    expect(res.status).toBe(409);
-    expect(res.body.code).toBe("CANNOT_EXPIRE_MANUAL_REVIEW");
+    expect(res.status).toBe(200);
+    expect(res.body.bookingPayment.status).toBe("expired");
   });
 
   // =====================================================
@@ -455,7 +458,7 @@ describe("Expiração Manual de Pagamento — Rotas (Phase D7)", () => {
   // 16. RESERVA.STATUS MANTIDO (retrocompatibilidade)
   // =====================================================
 
-  it("Reserva.status permanece 'pendente' após expiração (retrocompatibilidade)", async () => {
+  it("Reserva.status é atualizado para 'cancelado' após expiração", async () => {
     const { bookingPayment } = await createPendingPaymentWithReserva();
 
     const res = await request(app)
@@ -464,7 +467,7 @@ describe("Expiração Manual de Pagamento — Rotas (Phase D7)", () => {
       .send({});
 
     expect(res.status).toBe(200);
-    expect(res.body.reserva.status).toBe("pendente");
+    expect(res.body.reserva.status).toBe("cancelado");
     expect(res.body.reserva.paymentStatus).toBe("expired");
   });
 

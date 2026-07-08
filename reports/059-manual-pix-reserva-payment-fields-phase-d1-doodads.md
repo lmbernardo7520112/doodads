@@ -90,3 +90,8 @@ TypeScript:  0 erros
 ## 10. Decisão
 
 **DECISÃO: PHASE D1 IMPLEMENTADA COM 9 CAMPOS OPCIONAIS E RETROCOMPATÍVEIS DE PAGAMENTO/ACEITE EM RESERVA, ENUM PAYMENTSTATUS EXPANDIDO COM 10 VALORES (3 LEGADOS + 7 NOVOS), STATUS PRINCIPAL NÃO ALTERADO, 35 TESTES DEDICADOS, SEM ATIVAÇÃO FUNCIONAL DE MANUAL_PIX, SEM SERVICE/CONTROLLER/ROUTE/SCHEMA/FRONTEND, SEM PAYMENT_PENDING ATIVO NO FLUXO, SEM PIX REAL, WEBHOOK, QR REAL OU PROVIDER REAL. SUÍTE COMPLETA: 11 SUÍTES, 181 TESTES VERDES, TYPESCRIPT 0 ERROS, AUDITORIAS LIMPAS.**
+
+
+---
+
+> **Adendo Phase E3.3 (2026-07-07):** O endpoint legado `PATCH /:id/pagar` (`pagarReservaSimulado`), que era o único gerador do valor `paymentStatus: "aprovado"`, foi removido. O valor `"aprovado"` permanece no enum do modelo `Reserva` exclusivamente para retrocompatibilidade de dados persistidos anteriormente, mas não é mais gerado por nenhum endpoint ativo. Todo fluxo de pagamento ativo utiliza `"paid"` via confirmação manual pelo barbeiro.

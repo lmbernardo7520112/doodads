@@ -177,3 +177,54 @@ export const listarPagamentosManuaisBarbearia = async (req: Request, res: Respon
     return res.status(500).json({ message: "Erro interno ao listar pagamentos manuais." });
   }
 };
+
+/**
+ * PATCH /api/reservas/pagamento-manual/:bookingPaymentId/declarar-pago
+ *
+ * Cliente declara que realizou o pagamento manual por fora (envio do Pix).
+ * Altera status do pagamento e da reserva para manual_review.
+ */
+export const declararPagamentoManual = async (req: Request, res: Response) => {
+  try {
+    const { id: userId } = getUserInfo(req);
+
+    if (!userId) {
+      return res.status(401).json({ message: "Não autorizado." });
+    }
+
+    const { bookingPaymentId } = req.params;
+
+    const result = await bookingPaymentManualService.reportManualBookingPayment({
+      bookingPaymentId,
+      userId,
+    });
+
+    return res.status(200).json({
+      message: "Pagamento declarado com sucesso. Aguardando confirmação do estabelecimento.",
+      bookingPayment: {
+        id: result.bookingPayment._id,
+        status: result.bookingPayment.status,
+        amountCents: result.bookingPayment.amountCents,
+        currency: result.bookingPayment.currency,
+        provider: result.bookingPayment.provider,
+      },
+      reserva: {
+        id: result.reserva._id,
+        status: result.reserva.status,
+        paymentStatus: result.reserva.paymentStatus,
+      },
+      paymentStatusPresentation: presentPaymentStatus(result.bookingPayment.status),
+      reservaStatusPresentation: presentReservaStatus(result.reserva.status),
+    });
+  } catch (error) {
+    if (error instanceof AppError) {
+      return res.status(error.statusCode).json({
+        message: error.message,
+        code: error.code,
+      });
+    }
+    console.error("Erro ao declarar pagamento manual:", error);
+    return res.status(500).json({ message: "Erro interno ao declarar pagamento." });
+  }
+};
+
