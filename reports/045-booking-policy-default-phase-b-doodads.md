@@ -46,3 +46,12 @@ Nesta fase, sob severa governança:
 
 ## 7. Decisão
 DECISÃO: PHASE B IMPLEMENTADA COM BOOKINGPOLICY DEFAULT POR BARBEARIA, SEM ATIVAÇÃO DE PIX REAL, WEBHOOK, QR REAL, PROVIDER REAL, FRONTEND PÚBLICO OU ALTERAÇÃO DO FLUXO DE RESERVAS. TESTES, TYPESCRIPT E AUDITORIAS PERMANECEM VERDES.
+
+---
+
+## 8. Adendo de Re-verificação de Baseline (2026-07-08)
+Foi executada uma verificação regressiva da Phase B diretamente a partir da branch `feat/doodads-booking-policy-default-phase-b` baseada na main atual.
+- **Suíte de Testes**: 23 suítes / 355 testes passaram com sucesso, incluindo os testes específicos de `BookingPolicyService`.
+- **TypeScript**: 0 erros detectados.
+- **Integridade**: A BookingPolicy default está estável e serve de base para todo o fluxo de reservas manual e prepayment posterior.
+
