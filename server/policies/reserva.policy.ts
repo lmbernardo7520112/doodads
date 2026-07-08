@@ -10,9 +10,5 @@ export class ReservaPolicy {
     const isPrivileged = ["barbeiro", "admin", "staff"].includes(usuarioTipo);
     return isOwner || isPrivileged;
   }
-
-  canPay(usuarioId: string, reserva: IReserva): boolean {
-    return String(reserva.usuario) === String(usuarioId);
-  }
 }
 export const reservaPolicy = new ReservaPolicy();

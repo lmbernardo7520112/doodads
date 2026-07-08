@@ -10,7 +10,6 @@ import {
   criarReserva,
   listarMinhasReservas,
   cancelarReserva,
-  pagarReservaSimulado,
   getReservaById,
 } from "../controllers/reserva.controller";
 import { confirmarPagamentoManual, expirarPagamentoManual, declararPagamentoManual } from "../controllers/bookingPaymentManual.controller";
@@ -66,8 +65,7 @@ router.patch(
   declararPagamentoManual
 );
 
-// ⚠️ Pagamento simulado (dev)
-router.patch("/:id/pagar", authMiddleware, pagarReservaSimulado);
+
 
 // Slots disponíveis
 router.get("/:barbeariaId/slots", async (req, res) => {

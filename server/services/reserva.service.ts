@@ -282,30 +282,6 @@ export class ReservaService {
 
     return reservaRepository.save(reserva);
   }
-
-  async pagarReservaSimulado(id: string, usuarioId: string) {
-    const reserva = await reservaRepository.findById(id);
-    if (!reserva) throw new AppError("Reserva não encontrada.", 404, "NOT_FOUND");
-
-    if (!reservaPolicy.canPay(usuarioId, reserva)) {
-      throw new AppError("Você não pode pagar por esta reserva.", 403, "FORBIDDEN_PAY");
-    }
-
-    if (reserva.status === "cancelado") {
-      throw new AppError("Esta reserva já está cancelada.", 400, "ALREADY_CANCELLED");
-    }
-
-    if (reserva.paymentStatus === "aprovado") {
-      throw new AppError("Pagamento já aprovado.", 400, "ALREADY_PAID");
-    }
-
-    reserva.paymentStatus = "aprovado";
-    reserva.status = "confirmado";
-    reserva.confirmadoEm = new Date();
-    reserva.paymentId = "simulated-payment-" + reserva._id;
-
-    return reservaRepository.save(reserva);
-  }
 }
 export const reservaService = new ReservaService();
 

@@ -163,10 +163,11 @@ import BookingPayment from "../models/BookingPayment";
     console.log("✂️ Serviços criados:", servicos.map(s => s.nome));
 
     // ==========================================================
-    // 📅 Criação de Reserva
+    // 📅 Criação de Reserva (estado realista: pendente/pending)
     // ==========================================================
 
     const reservaId = new mongoose.Types.ObjectId();
+    const paymentExpiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 min
 
     const bookingPayment = await BookingPayment.create({
       reservaId: reservaId,
@@ -174,8 +175,8 @@ import BookingPayment from "../models/BookingPayment";
       provider: "manual",
       amountCents: servicos[0].preco * 100,
       currency: "BRL",
-      status: "paid",
-      paidAt: new Date()
+      status: "pending",
+      expiresAt: paymentExpiresAt,
     });
 
     const reserva = await Reserva.create({
@@ -184,29 +185,15 @@ import BookingPayment from "../models/BookingPayment";
       barbearia: barbearia._id,
       servico: servicos[0]._id,
       dataHora: new Date(Date.now() + 24 * 60 * 60 * 1000), // amanhã
-      status: "confirmado",
+      status: "pendente",
       valor: servicos[0].preco,
-      paymentStatus: "paid",
+      paymentStatus: "pending",
       paymentRequired: true,
       bookingPaymentId: bookingPayment._id,
-      confirmedAt: new Date()
+      paymentExpiresAt,
     });
 
-    console.log("📅 Reserva criada:", reserva._id);
-
-    // ==========================================================
-    // 💳 Criação de Pagamento (Legado/Compatibilidade)
-    // ==========================================================
-
-    const pagamento = await Pagamento.create({
-      reserva: reserva._id,
-      stripeSessionId: "sess_abc123",
-      status: "pago",
-      valor: reserva.valor,
-      metodo: "cartao",
-    });
-
-    console.log("💳 Pagamento registrado (Legado):", pagamento.status);
+    console.log("📅 Reserva criada (pendente, aguardando pagamento manual):", reserva._id);
 
     // ==========================================================
     // 💬 Criação de Mensagem
